@@ -1,0 +1,26 @@
+{
+  "name": "cornell",
+  "camera": {
+    "position": [278, 278, -800],
+    "lookAt": [278, 278, 0],
+    "vfov": 40
+  },
+  "background": [0, 0, 0],
+  "render": { "width": 400, "height": 400, "spp": 700, "maxDepth": 32, "seed": 7 },
+  "materials": {
+    "white": { "type": "lambertian", "albedo": [0.73, 0.73, 0.73] },
+    "red": { "type": "lambertian", "albedo": [0.65, 0.05, 0.05] },
+    "green": { "type": "lambertian", "albedo": [0.12, 0.45, 0.15] },
+    "light": { "type": "emissive", "color": [1.0, 0.9, 0.8], "intensity": 5 }
+  },
+  "objects": [
+    { "type": "rect", "plane": "yz", "min": [0, 0], "max": [555, 555], "k": 555, "material": "green" },
+    { "type": "rect", "plane": "yz", "min": [0, 0], "max": [555, 555], "k": 0, "material": "red" },
+    { "type": "rect", "plane": "xz", "min": [163, 177], "max": [393, 382], "k": 554.9, "material": "light" },
+    { "type": "rect", "plane": "xz", "min": [0, 0], "max": [555, 555], "k": 0, "material": "white" },
+    { "type": "rect", "plane": "xz", "min": [0, 0], "max": [555, 555], "k": 555, "material": "white" },
+    { "type": "rect", "plane": "xy", "min": [0, 0], "max": [555, 555], "k": 555, "material": "white" },
+    { "type": "box", "min": [265, 0, 296], "max": [430, 330, 461], "material": "white" },
+    { "type": "box", "min": [130, 0, 65], "max": [295, 165, 230], "material": "white" }
+  ]
+}

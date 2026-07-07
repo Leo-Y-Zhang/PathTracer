@@ -1,0 +1,31 @@
+{
+  "name": "spheres",
+  "camera": {
+    "position": [0, 1.5, 6],
+    "lookAt": [0, 0.9, 0.2],
+    "vfov": 36,
+    "aperture": 0.35,
+    "focusDist": 6.0
+  },
+  "background": { "type": "gradient", "top": [0.35, 0.55, 0.95], "bottom": [0.95, 0.97, 1.0] },
+  "render": { "width": 480, "height": 360, "spp": 300, "maxDepth": 32, "seed": 11 },
+  "materials": {
+    "ground": { "type": "lambertian", "albedo": [0.52, 0.5, 0.46] },
+    "glass": { "type": "dielectric", "ior": 1.5 },
+    "steel": { "type": "metal", "albedo": [0.85, 0.84, 0.82], "roughness": 0.06 },
+    "brick": { "type": "lambertian", "albedo": [0.65, 0.22, 0.18] },
+    "gold": { "type": "metal", "albedo": [0.9, 0.72, 0.35], "roughness": 0.25 },
+    "cobalt": { "type": "lambertian", "albedo": [0.2, 0.3, 0.7] },
+    "moss": { "type": "lambertian", "albedo": [0.3, 0.55, 0.3] }
+  },
+  "objects": [
+    { "type": "sphere", "center": [0, -1000, 0], "radius": 1000, "material": "ground" },
+    { "type": "sphere", "center": [0, 1, 0], "radius": 1, "material": "glass" },
+    { "type": "sphere", "center": [2.15, 1, -0.8], "radius": 1, "material": "steel" },
+    { "type": "sphere", "center": [-2.2, 1, -0.9], "radius": 1, "material": "brick" },
+    { "type": "sphere", "center": [-0.95, 0.4, 1.7], "radius": 0.4, "material": "gold" },
+    { "type": "sphere", "center": [1.05, 0.35, 2.1], "radius": 0.35, "material": "glass" },
+    { "type": "sphere", "center": [2.3, 0.35, 1.6], "radius": 0.35, "material": "cobalt" },
+    { "type": "sphere", "center": [-3.6, 0.5, -3.5], "radius": 0.5, "material": "moss" }
+  ]
+}
