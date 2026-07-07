@@ -23,6 +23,10 @@
     { "type": "sphere", "center": [0.4, 0.3, 2.0], "radius": 0.3, "material": "orchid" },
     { "type": "sphere", "center": [0.1, 1.0, -0.2], "radius": 1.0, "material": "chrome" },
     { "type": "sphere", "center": [1.3, 0.55, 1.4], "radius": 0.55, "material": "glass" },
-    { "type": "sphere", "center": [-1.0, 0.35, 1.2], "radius": 0.35, "material": "chalk" }
+    { "type": "sphere", "center": [-1.0, 0.35, 1.2], "radius": 0.35, "material": "chalk" },
+    { "type": "triangle", "v0": [2.0, 0, -0.8], "v1": [3.0, 0, -0.8], "v2": [2.5, 1.15, -1.3], "material": "chalk" },
+    { "type": "triangle", "v0": [3.0, 0, -0.8], "v1": [3.0, 0, -1.8], "v2": [2.5, 1.15, -1.3], "material": "chalk" },
+    { "type": "triangle", "v0": [3.0, 0, -1.8], "v1": [2.0, 0, -1.8], "v2": [2.5, 1.15, -1.3], "material": "chalk" },
+    { "type": "triangle", "v0": [2.0, 0, -1.8], "v1": [2.0, 0, -0.8], "v2": [2.5, 1.15, -1.3], "material": "chalk" }
   ]
 }
