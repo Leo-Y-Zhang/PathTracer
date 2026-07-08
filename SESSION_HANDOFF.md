@@ -33,12 +33,22 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 8. [ ] worker_threads tile renderer (determinism preserved)
 9. [ ] ESLint, gallery scenes, README/CHANGELOG, v1.0.0, review, merge+tag
 
+## Progress
+
+Steps 1-4 DONE + pushed (147 tests; furnace/determinism green):
+1 materials expose evalBrdf/scatterPdf/isSpecular · 2 AreaLight
+(pdfValue/sampleTowards) on Rect+Sphere (src/lights.ts) · 3 NEE+MIS integrator
+(trace gains optional `lights`; scene.lights wired through cli; validated
+unbiased + variance-cutting + deterministic) · 4 GGX microfacet conductor
+(src/microfacet.ts) + scene 'ggx' type.
+
 ## Exact next step
 
-DONE step 1 (evalBrdf/scatterPdf/isSpecular exposed on all materials; 131 tests;
-furnace still green). NEXT = step 2: add a light-sampling API to hittables that
-can be area lights — `pdfValue(origin, dir): number` and
-`sampleTowards(origin, rng): Vec3` — for Rect and Sphere (Box = 6 rects), with
-unit tests (pdf integrates to 1 over sampled directions; sampled directions hit
-the light). Then step 3 wires NEE + MIS into the integrator, gated by the
-furnace tests.
+NEXT = step 5 (textures + UVs). Sub-step 5a (bounded, do first): add optional
+`uv?: {u,v}` to HitRecord; compute UVs in Sphere (spherical), Rect (parametric),
+Triangle (barycentric); add src/texture.ts (Texture interface + SolidColor +
+CheckerTexture, procedural — no PNG decoder yet); add a TexturedLambertian that
+reads albedo from a Texture; scene-parse a `textures` map + the textured
+material; tests for UV values + checker + textured scatter. Sub-step 5b (later):
+in-tree PNG DECODER (mirror src/png.ts) + ImageTexture. Existing geometry hit()
+returning no uv must keep working (uv optional).
