@@ -26,19 +26,48 @@ export interface ScatterResult {
 }
 
 export interface Material {
+  /**
+   * True for Dirac (mirror / glass) BSDFs whose reflection is a delta: they
+   * have no finite BRDF value, so next-event estimation must skip them and let
+   * `scatter` carry all their energy. False for materials with a finite BRDF.
+   */
+  readonly isSpecular: boolean;
   /** Returns null when the path is absorbed / terminated at this surface. */
   scatter(rIn: Ray, hit: HitRecord, rng: Rng): ScatterResult | null;
+  /**
+   * BRDF value f(wo, wi) at the hit — no cosine, no pdf — for MIS direct
+   * lighting. wo and wi are unit world-space directions (wi points away from
+   * the surface toward the light / next vertex). Zero for specular BSDFs.
+   */
+  evalBrdf(wo: Vec3, wi: Vec3, hit: HitRecord): Vec3;
+  /**
+   * Solid-angle probability density that `scatter` would have sampled `wi`.
+   * Zero for specular BSDFs (their density is a delta, handled by `scatter`).
+   */
+  scatterPdf(wo: Vec3, wi: Vec3, hit: HitRecord): number;
   /** Radiance emitted by the surface (zero for non-lights). */
   emitted(): Vec3;
 }
 
 /** Ideal diffuse reflector with cosine-weighted hemisphere importance sampling. */
 export class Lambertian implements Material {
+  readonly isSpecular = false;
+
   constructor(readonly albedo: Vec3) {}
 
   scatter(_rIn: Ray, hit: HitRecord, rng: Rng): ScatterResult {
     const dir = cosineSampleHemisphere(hit.normal, rng);
     return { ray: ray(hit.point, dir), attenuation: this.albedo };
+  }
+
+  evalBrdf(_wo: Vec3, wi: Vec3, hit: HitRecord): Vec3 {
+    // Constant BRDF albedo/pi on the upper hemisphere, 0 below the surface.
+    return dot(wi, hit.normal) > 0 ? scale(this.albedo, 1 / Math.PI) : ZERO;
+  }
+
+  scatterPdf(_wo: Vec3, wi: Vec3, hit: HitRecord): number {
+    const cos = dot(wi, hit.normal);
+    return cos > 0 ? cos / Math.PI : 0;
   }
 
   emitted(): Vec3 {
@@ -48,6 +77,8 @@ export class Lambertian implements Material {
 
 /** Mirror reflection perturbed by `roughness` * (uniform point on unit sphere). */
 export class Metal implements Material {
+  readonly isSpecular = true;
+
   constructor(
     readonly albedo: Vec3,
     readonly roughness: number,
@@ -62,6 +93,15 @@ export class Metal implements Material {
     // Perturbed rays that dip below the surface are absorbed.
     if (dot(dir, hit.normal) <= 0) return null;
     return { ray: ray(hit.point, normalize(dir)), attenuation: this.albedo };
+  }
+
+  // A (near-)delta reflection: no finite BRDF for NEE to sample.
+  evalBrdf(): Vec3 {
+    return ZERO;
+  }
+
+  scatterPdf(): number {
+    return 0;
   }
 
   emitted(): Vec3 {
@@ -83,6 +123,8 @@ export function schlickReflectance(cosine: number, refractionRatio: number): num
 
 /** Clear dielectric (glass): refracts by Snell's law, reflects by Schlick fresnel + TIR. */
 export class Dielectric implements Material {
+  readonly isSpecular = true;
+
   constructor(readonly ior: number) {}
 
   scatter(rIn: Ray, hit: HitRecord, rng: Rng): ScatterResult {
@@ -99,6 +141,14 @@ export class Dielectric implements Material {
     return { ray: ray(hit.point, dir), attenuation: ONE };
   }
 
+  evalBrdf(): Vec3 {
+    return ZERO;
+  }
+
+  scatterPdf(): number {
+    return 0;
+  }
+
   emitted(): Vec3 {
     return ZERO;
   }
@@ -106,6 +156,7 @@ export class Dielectric implements Material {
 
 /** Diffuse area light: emits `color * intensity`, absorbs all incoming paths. */
 export class Emissive implements Material {
+  readonly isSpecular = true;
   readonly radiance: Vec3;
 
   constructor(color: Vec3, intensity: number) {
@@ -114,6 +165,14 @@ export class Emissive implements Material {
 
   scatter(): null {
     return null;
+  }
+
+  evalBrdf(): Vec3 {
+    return ZERO;
+  }
+
+  scatterPdf(): number {
+    return 0;
   }
 
   emitted(): Vec3 {
