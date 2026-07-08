@@ -4,3 +4,9 @@ dist/
 tmp/
 smoke.png
 *.log
+
+# Secrets / credentials (defensive - none should ever exist here)
+.env
+.env.*
+*.pem
+*.key
