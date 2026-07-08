@@ -35,11 +35,10 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 
 ## Exact next step
 
-DONE step 1 (evalBrdf/scatterPdf/isSpecular, 131 tests). NEXT step 2: add
-light-sampling (pdfValue/sampleTowards) to Rect + Sphere. [was] Start step 1: extend the `Material` interface in `src/materials.ts` with
-`evalBrdf(wo, wi, hit): Vec3`, `scatterPdf(wo, wi, hit): number`, and an
-`isSpecular` flag; implement for Lambertian (BRDF = albedo/pi, pdf = cos/pi),
-mark Metal/Dielectric specular. Keep the existing `scatter` returning
-attenuation so the integrator is unchanged until step 3. Add unit tests
-asserting Lambertian evalBrdf/scatterPdf match the analytic values; run
-`npm test` (furnace must stay green).
+DONE step 1 (evalBrdf/scatterPdf/isSpecular exposed on all materials; 131 tests;
+furnace still green). NEXT = step 2: add a light-sampling API to hittables that
+can be area lights — `pdfValue(origin, dir): number` and
+`sampleTowards(origin, rng): Vec3` — for Rect and Sphere (Box = 6 rects), with
+unit tests (pdf integrates to 1 over sampled directions; sampled directions hit
+the light). Then step 3 wires NEE + MIS into the integrator, gated by the
+furnace tests.
