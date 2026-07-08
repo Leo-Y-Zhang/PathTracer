@@ -108,6 +108,7 @@ export function main(argv: readonly string[]): void {
         process.stderr.write(`\r${scene.name}: ${pct}% (${row}/${rows} rows)`);
       }
     },
+    scene.lights,
   );
 
   const png = encodePng(width, height, toneMap(img));

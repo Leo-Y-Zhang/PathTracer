@@ -46,6 +46,7 @@ import {
   Metal,
   type Material,
 } from './materials.js';
+import { LightList, type LightPrimitive } from './lights.js';
 import type { Background } from './integrator.js';
 
 export interface SceneCamera {
@@ -71,6 +72,8 @@ export interface SceneDescription {
   background: Background;
   /** BVH over all objects (brute-force list when the scene is empty). */
   world: Hittable;
+  /** Emissive rects/spheres, for next-event estimation (empty = pure path tracing). */
+  lights: LightList;
   objectCount: number;
   defaults: SceneRenderDefaults;
 }
@@ -230,11 +233,18 @@ export function parseScene(json: unknown): SceneDescription {
 
   const world: Hittable = objects.length > 0 ? BVHNode.build(objects) : new HittableList([]);
 
+  // Emissive rects and spheres double as importance-sampled lights for NEE.
+  const lights = objects.filter(
+    (o): o is LightPrimitive =>
+      (o instanceof Rect || o instanceof Sphere) && o.material instanceof Emissive,
+  );
+
   return {
     name: root['name'] === undefined ? 'scene' : asString(root['name'], '$.name'),
     camera,
     background,
     world,
+    lights: new LightList(lights),
     objectCount: objects.length,
     defaults,
   };
