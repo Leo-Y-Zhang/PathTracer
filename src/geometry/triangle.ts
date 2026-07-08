@@ -37,7 +37,8 @@ export class Triangle implements Hittable {
 
     const outward = normalize(cross(e1, e2));
     const { normal, frontFace } = faceNormal(r.dir, outward);
-    return { t, point: at(r, t), normal, frontFace, material: this.material };
+    // Barycentric (u, v) double as default texture coordinates.
+    return { t, point: at(r, t), normal, frontFace, material: this.material, uv: { u, v } };
   }
 
   boundingBox(): AABB {

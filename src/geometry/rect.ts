@@ -57,7 +57,11 @@ export class Rect implements Hittable, AreaLight {
     if (t < tMin || t > tMax) return null;
     if (a < this.a0 || a > this.a1 || b < this.b0 || b > this.b1) return null;
     const { normal, frontFace } = faceNormal(r.dir, outward);
-    return { t, point: at(r, t), normal, frontFace, material: this.material };
+    const uv = {
+      u: (a - this.a0) / (this.a1 - this.a0),
+      v: (b - this.b0) / (this.b1 - this.b0),
+    };
+    return { t, point: at(r, t), normal, frontFace, material: this.material, uv };
   }
 
   boundingBox(): AABB {

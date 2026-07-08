@@ -45,8 +45,10 @@ import {
   GGXConductor,
   Lambertian,
   Metal,
+  TexturedLambertian,
   type Material,
 } from './materials.js';
+import { CheckerTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
 import type { Background } from './integrator.js';
 
@@ -108,12 +110,37 @@ function asVec2(v: unknown, path: string): [number, number] {
   return [asNumber(v[0], `${path}[0]`), asNumber(v[1], `${path}[1]`)];
 }
 
-function parseMaterial(json: unknown, path: string): Material {
+function parseTexture(json: unknown, path: string): Texture {
+  const t = asObject(json, path);
+  const type = asString(t['type'], `${path}.type`);
+  switch (type) {
+    case 'solid':
+      return new SolidColor(asVec3(t['color'], `${path}.color`));
+    case 'checker': {
+      const squares = t['squares'] === undefined ? 8 : asNumber(t['squares'], `${path}.squares`);
+      return new CheckerTexture(asVec3(t['a'], `${path}.a`), asVec3(t['b'], `${path}.b`), squares);
+    }
+    default:
+      fail(`${path}.type`, 'one of solid | checker', type);
+  }
+}
+
+function parseMaterial(
+  json: unknown,
+  path: string,
+  textures: ReadonlyMap<string, Texture>,
+): Material {
   const m = asObject(json, path);
   const type = asString(m['type'], `${path}.type`);
   switch (type) {
     case 'lambertian':
       return new Lambertian(asVec3(m['albedo'], `${path}.albedo`));
+    case 'textured_lambertian': {
+      const texName = asString(m['texture'], `${path}.texture`);
+      const tex = textures.get(texName);
+      if (!tex) throw new Error(`scene: ${path}.texture: unknown texture "${texName}"`);
+      return new TexturedLambertian(tex);
+    }
     case 'metal': {
       const roughness = m['roughness'] === undefined ? 0 : asNumber(m['roughness'], `${path}.roughness`);
       if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
@@ -131,7 +158,11 @@ function parseMaterial(json: unknown, path: string): Material {
       return new Emissive(asVec3(m['color'], `${path}.color`), intensity);
     }
     default:
-      fail(`${path}.type`, 'one of lambertian | metal | dielectric | ggx | emissive', type);
+      fail(
+        `${path}.type`,
+        'one of lambertian | textured_lambertian | metal | dielectric | ggx | emissive',
+        type,
+      );
   }
 }
 
@@ -227,10 +258,16 @@ export function parseScene(json: unknown): SceneDescription {
     seed: rd['seed'] === undefined ? 1 : asNumber(rd['seed'], '$.render.seed'),
   };
 
+  const textures = new Map<string, Texture>();
+  const texJson = asObject(root['textures'] ?? {}, '$.textures');
+  for (const [name, tj] of Object.entries(texJson)) {
+    textures.set(name, parseTexture(tj, `$.textures.${name}`));
+  }
+
   const materials = new Map<string, Material>();
   const matsJson = asObject(root['materials'] ?? {}, '$.materials');
   for (const [name, matJson] of Object.entries(matsJson)) {
-    materials.set(name, parseMaterial(matJson, `$.materials.${name}`));
+    materials.set(name, parseMaterial(matJson, `$.materials.${name}`, textures));
   }
 
   const objsJson = root['objects'];
