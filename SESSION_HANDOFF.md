@@ -26,7 +26,7 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 1. [x] Material BRDF-eval + pdf refactor (evalBrdf/scatterPdf/isSpecular)
 2. [x] Hittable light-sampling API (pdfValue/sampleTowards) rect + sphere
 3. [x] Integrator NEE + MIS (power heuristic) + direct-lighting/variance tests
-4. [ ] GGX microfacet material + VNDF sampling + white-furnace conductor test
+4. [x] GGX microfacet material + VNDF sampling + white-furnace conductor test
 5. [ ] UVs on geometry + Texture interface + in-tree PNG decoder + textured mats
 6. [ ] OBJ loader + smooth normals + instance transforms
 7. [ ] Tone operators + sky model + stratified sampling
