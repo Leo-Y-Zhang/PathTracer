@@ -27,7 +27,7 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 2. [x] Hittable light-sampling API (pdfValue/sampleTowards) rect + sphere
 3. [x] Integrator NEE + MIS (power heuristic) + direct-lighting/variance tests
 4. [x] GGX microfacet material + VNDF sampling + white-furnace conductor test
-5. [ ] UVs on geometry + Texture interface + in-tree PNG decoder + textured mats
+5. [~] UVs on geometry (5a done; 5b=PNG decoder pending) + Texture interface + in-tree PNG decoder + textured mats
 6. [ ] OBJ loader + smooth normals + instance transforms
 7. [ ] Tone operators + sky model + stratified sampling
 8. [ ] worker_threads tile renderer (determinism preserved)
@@ -44,11 +44,12 @@ unbiased + variance-cutting + deterministic) · 4 GGX microfacet conductor
 
 ## Exact next step
 
-NEXT = step 5 (textures + UVs). Sub-step 5a (bounded, do first): add optional
-`uv?: {u,v}` to HitRecord; compute UVs in Sphere (spherical), Rect (parametric),
-Triangle (barycentric); add src/texture.ts (Texture interface + SolidColor +
-CheckerTexture, procedural — no PNG decoder yet); add a TexturedLambertian that
-reads albedo from a Texture; scene-parse a `textures` map + the textured
-material; tests for UV values + checker + textured scatter. Sub-step 5b (later):
-in-tree PNG DECODER (mirror src/png.ts) + ImageTexture. Existing geometry hit()
-returning no uv must keep working (uv optional).
+DONE 5a (UVs on Sphere/Rect/Triangle + src/texture.ts SolidColor/CheckerTexture
++ TexturedLambertian + scene textures map; 156 tests). NEXT = sub-step 5b:
+in-tree PNG DECODER (mirror the src/png.ts encoder: parse IHDR/IDAT, inflate via
+node:zlib, unfilter scanlines) + `ImageTexture` sampling it with bilinear/nearest
+lookup + scene `{type:'image', path}` texture; test against a round-trip
+(encode->decode) of a known buffer. THEN step 6 (OBJ meshes + smooth normals +
+instance transforms), step 7 (tone/sky/stratified), step 8 (worker_threads
+tiles), step 9 (ESLint, gallery regen, README/CHANGELOG, v1.0.0, review,
+merge+tag). Furnace/determinism stay green throughout.
