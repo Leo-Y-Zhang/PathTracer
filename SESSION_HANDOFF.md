@@ -23,7 +23,7 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 
 ## Build order (TDD, commit+push each green step)
 
-1. [ ] Material BRDF-eval + pdf refactor (evalBrdf/scatterPdf/isSpecular)
+1. [x] Material BRDF-eval + pdf refactor (evalBrdf/scatterPdf/isSpecular)
 2. [ ] Hittable light-sampling API (pdfValue/sampleTowards) rect + sphere
 3. [ ] Integrator NEE + MIS (power heuristic) + direct-lighting/variance tests
 4. [ ] GGX microfacet material + VNDF sampling + white-furnace conductor test
@@ -35,7 +35,8 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 
 ## Exact next step
 
-Start step 1: extend the `Material` interface in `src/materials.ts` with
+DONE step 1 (evalBrdf/scatterPdf/isSpecular, 131 tests). NEXT step 2: add
+light-sampling (pdfValue/sampleTowards) to Rect + Sphere. [was] Start step 1: extend the `Material` interface in `src/materials.ts` with
 `evalBrdf(wo, wi, hit): Vec3`, `scatterPdf(wo, wi, hit): number`, and an
 `isSpecular` flag; implement for Lambertian (BRDF = albedo/pi, pdf = cos/pi),
 mark Metal/Dielectric specular. Keep the existing `scatter` returning
