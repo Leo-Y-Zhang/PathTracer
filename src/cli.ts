@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pathlight CLI.
+ * Helios CLI.
  *
  *   node dist/cli.js render <scene.json> [--out file.png] [--spp N]
  *                    [--seed N] [--width N] [--height N] [--max-depth N]
@@ -16,7 +16,7 @@ import { Camera } from './camera.js';
 import { renderScene } from './integrator.js';
 import { encodePng, toneMap } from './png.js';
 
-const USAGE = `usage: pathlight render <scene.json> [options]
+const USAGE = `usage: helios render <scene.json> [options]
 
 options:
   --out <file.png>   output path (default: renders/<scene name>.png)

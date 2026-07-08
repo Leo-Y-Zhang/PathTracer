@@ -1,4 +1,7 @@
-# Pathlight
+# Helios
+
+Helios - the charioteer who drives light across the sky; this one drives
+rays of it through your scenes, pixel by pixel.
 
 A physically-based Monte Carlo path tracer written in TypeScript for Node,
 with **zero runtime dependencies**. It renders JSON-described scenes to PNG
@@ -44,7 +47,7 @@ render:all` (deterministic - re-running reproduces these exact files).
 
 ```bash
 git clone <this repo>
-cd Pathlight
+cd Helios
 npm ci
 npm test          # build + typecheck + 126 tests
 ```

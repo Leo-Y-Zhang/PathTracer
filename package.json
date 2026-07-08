@@ -1,5 +1,5 @@
 {
-  "name": "pathlight",
+  "name": "helios",
   "version": "0.1.0",
   "description": "Physically-based Monte Carlo path tracer in TypeScript with zero runtime dependencies, deterministic PNG output, and a physics-validated test suite",
   "type": "module",
