@@ -15,6 +15,7 @@ import type { HitRecord } from './hittable.js';
 import type { Rng } from './rng.js';
 import { cosineSampleHemisphere, randomUnitVector } from './sampling.js';
 import { fresnelSchlick, ggxD, ggxReflectPdf, sampleGGXNormal, smithG } from './microfacet.js';
+import type { Texture } from './texture.js';
 
 export interface ScatterResult {
   ray: Ray;
@@ -64,6 +65,37 @@ export class Lambertian implements Material {
   evalBrdf(_wo: Vec3, wi: Vec3, hit: HitRecord): Vec3 {
     // Constant BRDF albedo/pi on the upper hemisphere, 0 below the surface.
     return dot(wi, hit.normal) > 0 ? scale(this.albedo, 1 / Math.PI) : ZERO;
+  }
+
+  scatterPdf(_wo: Vec3, wi: Vec3, hit: HitRecord): number {
+    const cos = dot(wi, hit.normal);
+    return cos > 0 ? cos / Math.PI : 0;
+  }
+
+  emitted(): Vec3 {
+    return ZERO;
+  }
+}
+
+/** Diffuse reflector whose albedo is read from a texture at the hit's UVs. */
+export class TexturedLambertian implements Material {
+  readonly isSpecular = false;
+
+  constructor(readonly texture: Texture) {}
+
+  private albedoAt(hit: HitRecord): Vec3 {
+    return hit.uv
+      ? this.texture.sample(hit.uv.u, hit.uv.v, hit.point)
+      : this.texture.sample(0, 0, hit.point);
+  }
+
+  scatter(_rIn: Ray, hit: HitRecord, rng: Rng): ScatterResult {
+    const dir = cosineSampleHemisphere(hit.normal, rng);
+    return { ray: ray(hit.point, dir), attenuation: this.albedoAt(hit) };
+  }
+
+  evalBrdf(_wo: Vec3, wi: Vec3, hit: HitRecord): Vec3 {
+    return dot(wi, hit.normal) > 0 ? scale(this.albedoAt(hit), 1 / Math.PI) : ZERO;
   }
 
   scatterPdf(_wo: Vec3, wi: Vec3, hit: HitRecord): number {

@@ -7,6 +7,13 @@ import type { AreaLight } from '../lights.js';
 import type { Rng } from '../rng.js';
 import type { Material } from '../materials.js';
 
+/** Equirectangular texture coordinates for a unit outward normal on the sphere. */
+function sphereUV(p: Vec3): { u: number; v: number } {
+  const theta = Math.acos(Math.min(1, Math.max(-1, -p.y)));
+  const phi = Math.atan2(-p.z, p.x) + Math.PI;
+  return { u: phi / (2 * Math.PI), v: theta / Math.PI };
+}
+
 export class Sphere implements Hittable, AreaLight {
   constructor(
     readonly center: Vec3,
@@ -32,7 +39,7 @@ export class Sphere implements Hittable, AreaLight {
     const point = at(r, root);
     const outward = scale(sub(point, this.center), 1 / this.radius);
     const { normal, frontFace } = faceNormal(r.dir, outward);
-    return { t: root, point, normal, frontFace, material: this.material };
+    return { t: root, point, normal, frontFace, material: this.material, uv: sphereUV(outward) };
   }
 
   boundingBox(): AABB {
