@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Renamed Pathlight to Helios (mythological naming system). Package name is
+  now `helios`; CLI usage string updated accordingly. Scene format, flags,
+  and `scenes/` / `renders/` paths are unchanged.
+
 ## v0.1.0 (2026-07-07)
 
 Initial release.
@@ -19,7 +25,7 @@ Initial release.
   (x, y, sample, seed); identical CLI runs produce byte-identical PNGs.
 - JSON scene format with three committed scenes (cornell, spheres, night)
   and a rendered README gallery.
-- CLI: `pathlight render <scene.json>` with progress on stderr; `render:all`
+- CLI: `helios render <scene.json>` with progress on stderr; `render:all`
   regenerates the gallery deterministically.
 - Physics-validated test suite: furnace test (energy conservation), white
   furnace (russian roulette bias), cosine-sampling distribution, fresnel
