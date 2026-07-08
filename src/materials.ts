@@ -14,6 +14,7 @@ import { ray, type Ray } from './ray.js';
 import type { HitRecord } from './hittable.js';
 import type { Rng } from './rng.js';
 import { cosineSampleHemisphere, randomUnitVector } from './sampling.js';
+import { fresnelSchlick, ggxD, ggxReflectPdf, sampleGGXNormal, smithG } from './microfacet.js';
 
 export interface ScatterResult {
   ray: Ray;
@@ -102,6 +103,62 @@ export class Metal implements Material {
 
   scatterPdf(): number {
     return 0;
+  }
+
+  emitted(): Vec3 {
+    return ZERO;
+  }
+}
+
+const MIN_ALPHA = 1e-3;
+
+/**
+ * Physically-based rough conductor: the Cook-Torrance GGX microfacet BRDF
+ * (Trowbridge-Reitz distribution D, height-correlated Smith masking G, Schlick
+ * Fresnel with F0 = albedo). Unlike `Metal`'s ad-hoc sphere-perturbed
+ * roughness, this is energy-preserving (up to the known single-scatter loss at
+ * high roughness) and properly importance-sampled, so it exposes a finite BRDF
+ * and pdf and works with next-event estimation. `roughness` in [0, 1] is
+ * perceptual; the GGX alpha is roughness^2.
+ */
+export class GGXConductor implements Material {
+  readonly isSpecular = false;
+  private readonly alpha: number;
+
+  constructor(
+    readonly albedo: Vec3,
+    readonly roughness: number,
+  ) {
+    this.alpha = Math.max(MIN_ALPHA, roughness * roughness);
+  }
+
+  scatter(rIn: Ray, hit: HitRecord, rng: Rng): ScatterResult | null {
+    const n = hit.normal;
+    const wo = neg(normalize(rIn.dir));
+    if (dot(n, wo) <= 0) return null;
+    const h = sampleGGXNormal(n, this.alpha, rng);
+    const wi = reflect(normalize(rIn.dir), h);
+    if (dot(n, wi) <= 0) return null; // reflected below the surface: absorbed
+    const pdf = ggxReflectPdf(n, wo, wi, this.alpha);
+    if (pdf <= 0) return null;
+    const f = this.evalBrdf(wo, wi, hit);
+    return { ray: ray(hit.point, wi), attenuation: scale(f, dot(n, wi) / pdf) };
+  }
+
+  evalBrdf(wo: Vec3, wi: Vec3, hit: HitRecord): Vec3 {
+    const n = hit.normal;
+    const nwo = dot(n, wo);
+    const nwi = dot(n, wi);
+    if (nwo <= 0 || nwi <= 0) return ZERO;
+    const h = normalize(add(wo, wi));
+    const d = ggxD(n, h, this.alpha);
+    const g = smithG(n, wo, wi, this.alpha);
+    const fr = fresnelSchlick(Math.max(0, dot(wo, h)), this.albedo);
+    return scale(fr, (d * g) / (4 * nwo * nwi));
+  }
+
+  scatterPdf(wo: Vec3, wi: Vec3, hit: HitRecord): number {
+    return ggxReflectPdf(hit.normal, wo, wi, this.alpha);
   }
 
   emitted(): Vec3 {

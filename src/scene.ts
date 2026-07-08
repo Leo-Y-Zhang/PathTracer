@@ -42,6 +42,7 @@ import { Triangle } from './geometry/triangle.js';
 import {
   Dielectric,
   Emissive,
+  GGXConductor,
   Lambertian,
   Metal,
   type Material,
@@ -120,12 +121,17 @@ function parseMaterial(json: unknown, path: string): Material {
     }
     case 'dielectric':
       return new Dielectric(asNumber(m['ior'], `${path}.ior`));
+    case 'ggx': {
+      const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
+      if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
+      return new GGXConductor(asVec3(m['albedo'], `${path}.albedo`), roughness);
+    }
     case 'emissive': {
       const intensity = m['intensity'] === undefined ? 1 : asNumber(m['intensity'], `${path}.intensity`);
       return new Emissive(asVec3(m['color'], `${path}.color`), intensity);
     }
     default:
-      fail(`${path}.type`, 'one of lambertian | metal | dielectric | emissive', type);
+      fail(`${path}.type`, 'one of lambertian | metal | dielectric | ggx | emissive', type);
   }
 }
 
