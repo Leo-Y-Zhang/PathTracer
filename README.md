@@ -1,4 +1,6 @@
-# Helios
+# Helios - a physics-validated Monte Carlo path tracer in TypeScript
+
+[![CI](https://github.com/GreenPandaTech/Helios/actions/workflows/ci.yml/badge.svg)](https://github.com/GreenPandaTech/Helios/actions/workflows/ci.yml)
 
 Helios - the charioteer who drives light across the sky; this one drives
 rays of it through your scenes, pixel by pixel.
@@ -49,7 +51,8 @@ render:all` (deterministic - re-running reproduces these exact files).
 git clone <this repo>
 cd Helios
 npm ci
-npm test          # build + typecheck + 126 tests
+npm test          # builds, then runs 126 tests (14 suites)
+npm run typecheck # strict tsc --noEmit (separate from npm test)
 ```
 
 Requires Node >= 20. No runtime dependencies are installed - the three dev
@@ -62,10 +65,12 @@ npm run build
 node dist/cli.js render scenes/cornell.json --out renders/cornell.png --spp 256 --seed 7 --width 480
 ```
 
-Real observed output (this machine, Node 25):
+Real observed output (Node 25; the percentage line updates in place on stderr):
 
 ```text
-OBSERVED_OUTPUT_PLACEHOLDER
+cornell: 480x480, 256 spp, seed 7, 8 objects
+cornell: 100% (480/480 rows)
+wrote renders/cornell.png (479518 bytes) in 56.4s
 ```
 
 `npm run render:all` regenerates the whole committed gallery
