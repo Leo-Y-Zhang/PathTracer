@@ -3,6 +3,7 @@ import { ray, type Ray } from './ray.js';
 import type { Hittable } from './hittable.js';
 import type { Camera } from './camera.js';
 import type { LightList } from './lights.js';
+import { stratifiedOffset } from './sampling.js';
 import { pixelRng, type Rng } from './rng.js';
 
 /** Environment radiance for rays that leave the scene. */
@@ -152,8 +153,9 @@ export function renderScene(
       let b = 0;
       for (let s = 0; s < spp; s++) {
         const rng = pixelRng(x, y, s, seed);
-        const u = (x + rng.float()) / width;
-        const v = 1 - (y + rng.float()) / height;
+        const j = stratifiedOffset(s, spp, rng);
+        const u = (x + j.x) / width;
+        const v = 1 - (y + j.y) / height;
         const c = trace(camera.getRay(u, v, rng), world, background, rng, maxDepth, lights);
         // Guard against a degenerate sample poisoning the pixel.
         if (Number.isFinite(c.x)) r += c.x;
