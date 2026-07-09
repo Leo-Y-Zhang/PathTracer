@@ -42,11 +42,21 @@ import { Triangle } from './geometry/triangle.js';
 import {
   Dielectric,
   Emissive,
+  GGXConductor,
   Lambertian,
   Metal,
+  TexturedLambertian,
   type Material,
 } from './materials.js';
+import { Camera } from './camera.js';
+import { Transform, type TransformOpts } from './geometry/transform.js';
+import { loadObjTriangles } from './io/obj.js';
+import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
+import { LightList, type LightPrimitive } from './lights.js';
+import { skyBackground } from './sky.js';
 import type { Background } from './integrator.js';
+import type { ToneMapOp } from './png.js';
+import { readFileSync } from 'node:fs';
 
 export interface SceneCamera {
   position: Vec3;
@@ -63,6 +73,8 @@ export interface SceneRenderDefaults {
   spp: number;
   maxDepth: number;
   seed: number;
+  toneMapping: ToneMapOp;
+  exposure: number;
 }
 
 export interface SceneDescription {
@@ -71,6 +83,8 @@ export interface SceneDescription {
   background: Background;
   /** BVH over all objects (brute-force list when the scene is empty). */
   world: Hittable;
+  /** Emissive rects/spheres, for next-event estimation (empty = pure path tracing). */
+  lights: LightList;
   objectCount: number;
   defaults: SceneRenderDefaults;
 }
@@ -104,12 +118,41 @@ function asVec2(v: unknown, path: string): [number, number] {
   return [asNumber(v[0], `${path}[0]`), asNumber(v[1], `${path}[1]`)];
 }
 
-function parseMaterial(json: unknown, path: string): Material {
+function parseTexture(json: unknown, path: string): Texture {
+  const t = asObject(json, path);
+  const type = asString(t['type'], `${path}.type`);
+  switch (type) {
+    case 'solid':
+      return new SolidColor(asVec3(t['color'], `${path}.color`));
+    case 'checker': {
+      const squares = t['squares'] === undefined ? 8 : asNumber(t['squares'], `${path}.squares`);
+      return new CheckerTexture(asVec3(t['a'], `${path}.a`), asVec3(t['b'], `${path}.b`), squares);
+    }
+    case 'image': {
+      const file = asString(t['path'], `${path}.path`);
+      return ImageTexture.fromPng(readFileSync(file));
+    }
+    default:
+      fail(`${path}.type`, 'one of solid | checker | image', type);
+  }
+}
+
+function parseMaterial(
+  json: unknown,
+  path: string,
+  textures: ReadonlyMap<string, Texture>,
+): Material {
   const m = asObject(json, path);
   const type = asString(m['type'], `${path}.type`);
   switch (type) {
     case 'lambertian':
       return new Lambertian(asVec3(m['albedo'], `${path}.albedo`));
+    case 'textured_lambertian': {
+      const texName = asString(m['texture'], `${path}.texture`);
+      const tex = textures.get(texName);
+      if (!tex) throw new Error(`scene: ${path}.texture: unknown texture "${texName}"`);
+      return new TexturedLambertian(tex);
+    }
     case 'metal': {
       const roughness = m['roughness'] === undefined ? 0 : asNumber(m['roughness'], `${path}.roughness`);
       if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
@@ -117,12 +160,21 @@ function parseMaterial(json: unknown, path: string): Material {
     }
     case 'dielectric':
       return new Dielectric(asNumber(m['ior'], `${path}.ior`));
+    case 'ggx': {
+      const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
+      if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
+      return new GGXConductor(asVec3(m['albedo'], `${path}.albedo`), roughness);
+    }
     case 'emissive': {
       const intensity = m['intensity'] === undefined ? 1 : asNumber(m['intensity'], `${path}.intensity`);
       return new Emissive(asVec3(m['color'], `${path}.color`), intensity);
     }
     default:
-      fail(`${path}.type`, 'one of lambertian | metal | dielectric | emissive', type);
+      fail(
+        `${path}.type`,
+        'one of lambertian | textured_lambertian | metal | dielectric | ggx | emissive',
+        type,
+      );
   }
 }
 
@@ -133,18 +185,16 @@ function parseObject(
 ): Hittable {
   const o = asObject(json, path);
   const type = asString(o['type'], `${path}.type`);
-  const matName = asString(o['material'], `${path}.material`);
-  const material = materials.get(matName);
-  if (!material) {
-    throw new Error(`scene: ${path}.material: unknown material "${matName}"`);
-  }
+  // Material is resolved lazily so wrapper objects (transform) need not carry one.
+  const mat = (): Material => {
+    const name = asString(o['material'], `${path}.material`);
+    const m = materials.get(name);
+    if (!m) throw new Error(`scene: ${path}.material: unknown material "${name}"`);
+    return m;
+  };
   switch (type) {
     case 'sphere':
-      return new Sphere(
-        asVec3(o['center'], `${path}.center`),
-        asNumber(o['radius'], `${path}.radius`),
-        material,
-      );
+      return new Sphere(asVec3(o['center'], `${path}.center`), asNumber(o['radius'], `${path}.radius`), mat());
     case 'rect': {
       const plane = asString(o['plane'], `${path}.plane`);
       if (plane !== 'xy' && plane !== 'xz' && plane !== 'yz') {
@@ -152,19 +202,34 @@ function parseObject(
       }
       const [a0, b0] = asVec2(o['min'], `${path}.min`);
       const [a1, b1] = asVec2(o['max'], `${path}.max`);
-      return new Rect(plane as RectPlane, a0, b0, a1, b1, asNumber(o['k'], `${path}.k`), material);
+      return new Rect(plane as RectPlane, a0, b0, a1, b1, asNumber(o['k'], `${path}.k`), mat());
     }
     case 'box':
-      return new Box(asVec3(o['min'], `${path}.min`), asVec3(o['max'], `${path}.max`), material);
+      return new Box(asVec3(o['min'], `${path}.min`), asVec3(o['max'], `${path}.max`), mat());
     case 'triangle':
       return new Triangle(
         asVec3(o['v0'], `${path}.v0`),
         asVec3(o['v1'], `${path}.v1`),
         asVec3(o['v2'], `${path}.v2`),
-        material,
+        mat(),
       );
+    case 'mesh': {
+      const file = asString(o['path'], `${path}.path`);
+      const tris = loadObjTriangles(readFileSync(file, 'utf8'), mat());
+      return tris.length > 0 ? BVHNode.build(tris) : new HittableList([]);
+    }
+    case 'transform': {
+      const child = parseObject(o['object'], `${path}.object`, materials);
+      const opts: TransformOpts = {};
+      if (o['translate'] !== undefined) opts.translate = asVec3(o['translate'], `${path}.translate`);
+      if (o['rotate'] !== undefined) opts.rotate = asVec3(o['rotate'], `${path}.rotate`);
+      if (o['scale'] !== undefined) {
+        opts.scale = typeof o['scale'] === 'number' ? o['scale'] : asVec3(o['scale'], `${path}.scale`);
+      }
+      return Transform.build(child, opts);
+    }
     default:
-      fail(`${path}.type`, 'one of sphere | rect | box | triangle', type);
+      fail(`${path}.type`, 'one of sphere | rect | box | triangle | mesh | transform', type);
   }
 }
 
@@ -191,7 +256,31 @@ function parseBackground(json: unknown, path: string): Background {
       return lerp(bottom, top, t);
     };
   }
-  fail(`${path}.type`, 'one of solid | gradient', type);
+  if (type === 'sky') {
+    return skyBackground({
+      sunDirection: asVec3(b['sun'], `${path}.sun`),
+      sunColor: b['sunColor'] === undefined ? vec3(1, 0.95, 0.85) : asVec3(b['sunColor'], `${path}.sunColor`),
+      sunIntensity: b['sunIntensity'] === undefined ? 12 : asNumber(b['sunIntensity'], `${path}.sunIntensity`),
+      sunAngularRadius: b['sunAngle'] === undefined ? 0.05 : asNumber(b['sunAngle'], `${path}.sunAngle`),
+      zenith: b['zenith'] === undefined ? vec3(0.3, 0.5, 1) : asVec3(b['zenith'], `${path}.zenith`),
+      horizon: b['horizon'] === undefined ? vec3(0.9, 0.9, 0.95) : asVec3(b['horizon'], `${path}.horizon`),
+      ground: b['ground'] === undefined ? vec3(0.2, 0.2, 0.2) : asVec3(b['ground'], `${path}.ground`),
+    });
+  }
+  fail(`${path}.type`, 'one of solid | gradient | sky', type);
+}
+
+/** Build a Camera for a parsed scene at the target output dimensions. */
+export function cameraFor(scene: SceneDescription, width: number, height: number): Camera {
+  return new Camera({
+    position: scene.camera.position,
+    lookAt: scene.camera.lookAt,
+    up: scene.camera.up,
+    vfovDegrees: scene.camera.vfovDegrees,
+    aspect: width / height,
+    aperture: scene.camera.aperture,
+    ...(scene.camera.focusDist !== undefined ? { focusDist: scene.camera.focusDist } : {}),
+  });
 }
 
 export function parseScene(json: unknown): SceneDescription {
@@ -210,18 +299,30 @@ export function parseScene(json: unknown): SceneDescription {
   const background = parseBackground(root['background'], '$.background');
 
   const rd = root['render'] === undefined ? {} : asObject(root['render'], '$.render');
+  const tone = rd['toneMapping'];
+  if (tone !== undefined && tone !== 'linear' && tone !== 'reinhard' && tone !== 'aces') {
+    fail('$.render.toneMapping', 'one of linear | reinhard | aces', tone);
+  }
   const defaults: SceneRenderDefaults = {
     width: rd['width'] === undefined ? 480 : asNumber(rd['width'], '$.render.width'),
     height: rd['height'] === undefined ? 360 : asNumber(rd['height'], '$.render.height'),
     spp: rd['spp'] === undefined ? 64 : asNumber(rd['spp'], '$.render.spp'),
     maxDepth: rd['maxDepth'] === undefined ? 32 : asNumber(rd['maxDepth'], '$.render.maxDepth'),
     seed: rd['seed'] === undefined ? 1 : asNumber(rd['seed'], '$.render.seed'),
+    toneMapping: (tone as ToneMapOp | undefined) ?? 'linear',
+    exposure: rd['exposure'] === undefined ? 1 : asNumber(rd['exposure'], '$.render.exposure'),
   };
+
+  const textures = new Map<string, Texture>();
+  const texJson = asObject(root['textures'] ?? {}, '$.textures');
+  for (const [name, tj] of Object.entries(texJson)) {
+    textures.set(name, parseTexture(tj, `$.textures.${name}`));
+  }
 
   const materials = new Map<string, Material>();
   const matsJson = asObject(root['materials'] ?? {}, '$.materials');
   for (const [name, matJson] of Object.entries(matsJson)) {
-    materials.set(name, parseMaterial(matJson, `$.materials.${name}`));
+    materials.set(name, parseMaterial(matJson, `$.materials.${name}`, textures));
   }
 
   const objsJson = root['objects'];
@@ -230,11 +331,18 @@ export function parseScene(json: unknown): SceneDescription {
 
   const world: Hittable = objects.length > 0 ? BVHNode.build(objects) : new HittableList([]);
 
+  // Emissive rects and spheres double as importance-sampled lights for NEE.
+  const lights = objects.filter(
+    (o): o is LightPrimitive =>
+      (o instanceof Rect || o instanceof Sphere) && o.material instanceof Emissive,
+  );
+
   return {
     name: root['name'] === undefined ? 'scene' : asString(root['name'], '$.name'),
     camera,
     background,
     world,
+    lights: new LightList(lights),
     objectCount: objects.length,
     defaults,
   };

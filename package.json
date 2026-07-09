@@ -1,7 +1,7 @@
 {
   "name": "helios",
-  "version": "0.1.0",
-  "description": "Physically-based Monte Carlo path tracer in TypeScript with zero runtime dependencies, deterministic PNG output, and a physics-validated test suite",
+  "version": "1.0.0",
+  "description": "Physically-based Monte Carlo path tracer in TypeScript with next-event estimation + MIS, GGX materials, textures, meshes, transforms and worker-thread rendering; zero runtime dependencies, deterministic PNG output, and a physics-validated test suite",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -10,13 +10,17 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && vitest run",
-    "render:all": "npm run build && node dist/cli.js render scenes/cornell.json --out renders/cornell.png && node dist/cli.js render scenes/spheres.json --out renders/spheres.png && node dist/cli.js render scenes/night.json --out renders/night.png"
+    "render:all": "npm run build && node dist/cli.js render scenes/cornell.json --out renders/cornell.png --workers 4 && node dist/cli.js render scenes/spheres.json --out renders/spheres.png --workers 4 && node dist/cli.js render scenes/night.json --out renders/night.png --workers 4 && node dist/cli.js render scenes/showcase.json --out renders/showcase.png --workers 4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.2",
+    "eslint": "^10.6.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^3.2.7"
   }
 }

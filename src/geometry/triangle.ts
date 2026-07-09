@@ -1,4 +1,4 @@
-import { cross, dot, normalize, sub, vec3, type Vec3 } from '../vec3.js';
+import { add, cross, dot, normalize, scale, sub, vec3, type Vec3 } from '../vec3.js';
 import { at, type Ray } from '../ray.js';
 import { AABB } from '../aabb.js';
 import { faceNormal, type HitRecord, type Hittable } from '../hittable.js';
@@ -7,13 +7,20 @@ import type { Material } from '../materials.js';
 const DET_EPS = 1e-12;
 const PAD = 1e-4;
 
-/** Triangle intersected with the Moller-Trumbore algorithm (double-sided). */
+/**
+ * Triangle intersected with the Moller-Trumbore algorithm (double-sided).
+ * Optional per-vertex normals give smooth (Phong) shading and optional
+ * per-vertex UVs give textured meshes; both are interpolated with the hit's
+ * barycentric weights (v0, v1, v2 -> 1-u-v, u, v).
+ */
 export class Triangle implements Hittable {
   constructor(
     readonly v0: Vec3,
     readonly v1: Vec3,
     readonly v2: Vec3,
     readonly material: Material,
+    readonly normals?: readonly [Vec3, Vec3, Vec3],
+    readonly uvs?: readonly [[number, number], [number, number], [number, number]],
   ) {}
 
   hit(r: Ray, tMin: number, tMax: number): HitRecord | null {
@@ -35,9 +42,26 @@ export class Triangle implements Hittable {
     const t = dot(e2, q) * invDet;
     if (t < tMin || t > tMax) return null;
 
-    const outward = normalize(cross(e1, e2));
-    const { normal, frontFace } = faceNormal(r.dir, outward);
-    return { t, point: at(r, t), normal, frontFace, material: this.material };
+    const w0 = 1 - u - v;
+    const w1 = u;
+    const w2 = v;
+    const geometric = normalize(cross(e1, e2));
+    const shading = this.normals
+      ? normalize(
+          add(
+            add(scale(this.normals[0], w0), scale(this.normals[1], w1)),
+            scale(this.normals[2], w2),
+          ),
+        )
+      : geometric;
+    const { normal, frontFace } = faceNormal(r.dir, shading);
+    const uv = this.uvs
+      ? {
+          u: w0 * this.uvs[0][0] + w1 * this.uvs[1][0] + w2 * this.uvs[2][0],
+          v: w0 * this.uvs[0][1] + w1 * this.uvs[1][1] + w2 * this.uvs[2][1],
+        }
+      : { u, v };
+    return { t, point: at(r, t), normal, frontFace, material: this.material, uv };
   }
 
   boundingBox(): AABB {
