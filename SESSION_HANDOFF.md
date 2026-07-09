@@ -29,7 +29,7 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 4. [x] GGX microfacet material + VNDF sampling + white-furnace conductor test
 5. [x] UVs on geometry + Texture interface + in-tree PNG decoder + textured mats
 6. [x] OBJ loader + smooth normals + instance transforms
-7. [ ] Tone operators + sky model + stratified sampling
+7. [x] Tone operators + sky model + stratified sampling
 8. [ ] worker_threads tile renderer (determinism preserved)
 9. [ ] ESLint, gallery scenes, README/CHANGELOG, v1.0.0, review, merge+tag
 
