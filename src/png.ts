@@ -5,7 +5,7 @@
  * npm dependency); signature, chunk framing, and CRC-32 are implemented
  * here and unit-tested against known answers.
  */
-import { deflateSync } from 'node:zlib';
+import { deflateSync, inflateSync } from 'node:zlib';
 
 export const PNG_SIGNATURE: Uint8Array = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -80,6 +80,116 @@ export function encodePng(width: number, height: number, rgb: Uint8Array): Buffe
     chunk('IDAT', idat),
     chunk('IEND', new Uint8Array(0)),
   ]);
+}
+
+export interface DecodedPng {
+  width: number;
+  height: number;
+  /** 3 for truecolour RGB (type 2), 4 for RGBA (type 6). */
+  channels: 3 | 4;
+  /** Row-major pixels, `channels` bytes per pixel. */
+  pixels: Uint8Array;
+}
+
+/** PNG Paeth predictor (a = left, b = above, c = upper-left). */
+function paeth(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  return pb <= pc ? b : c;
+}
+
+/**
+ * Minimal dependency-free PNG decoder mirroring the encoder: 8-bit truecolour
+ * RGB / RGBA, non-interlaced, all five scanline filters (None/Sub/Up/Average/
+ * Paeth). Chunk CRCs are verified; INFLATE comes from the node:zlib builtin.
+ */
+export function decodePng(bytes: Uint8Array): DecodedPng {
+  for (let i = 0; i < 8; i++) {
+    if (bytes[i] !== PNG_SIGNATURE[i]) throw new Error('not a PNG (bad signature)');
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let pos = 8;
+  let width = 0;
+  let height = 0;
+  let channels: 3 | 4 = 3;
+  const idat: Uint8Array[] = [];
+
+  while (pos + 8 <= bytes.length) {
+    const len = view.getUint32(pos);
+    const typeStart = pos + 4;
+    const type = String.fromCharCode(
+      bytes[typeStart]!,
+      bytes[typeStart + 1]!,
+      bytes[typeStart + 2]!,
+      bytes[typeStart + 3]!,
+    );
+    const dataStart = typeStart + 4;
+    const data = bytes.subarray(dataStart, dataStart + len);
+    const crcStored = view.getUint32(dataStart + len);
+    if (crc32(bytes.subarray(typeStart, dataStart + len)) !== crcStored) {
+      throw new Error(`PNG chunk ${type} failed CRC check`);
+    }
+    pos = dataStart + len + 4;
+
+    if (type === 'IHDR') {
+      const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      width = dv.getUint32(0);
+      height = dv.getUint32(4);
+      if (data[8] !== 8) throw new Error(`unsupported PNG bit depth ${data[8]}`);
+      if (data[12] !== 0) throw new Error('interlaced PNG not supported');
+      const colourType = data[9];
+      if (colourType === 2) channels = 3;
+      else if (colourType === 6) channels = 4;
+      else throw new Error(`unsupported PNG colour type ${colourType}`);
+    } else if (type === 'IDAT') {
+      idat.push(data.slice());
+    } else if (type === 'IEND') {
+      break;
+    }
+  }
+  if (width === 0 || height === 0) throw new Error('PNG missing IHDR');
+
+  const raw = inflateSync(Buffer.concat(idat.map((p) => Buffer.from(p))));
+  const stride = width * channels;
+  const pixels = new Uint8Array(height * stride);
+  let prev: Uint8Array | null = null;
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * (1 + stride);
+    const filter = raw[rowStart]!;
+    const cur = pixels.subarray(y * stride, (y + 1) * stride);
+    for (let x = 0; x < stride; x++) {
+      const rawByte = raw[rowStart + 1 + x]!;
+      const a = x >= channels ? cur[x - channels]! : 0;
+      const b = prev ? prev[x]! : 0;
+      const c = prev && x >= channels ? prev[x - channels]! : 0;
+      let recon: number;
+      switch (filter) {
+        case 0:
+          recon = rawByte;
+          break;
+        case 1:
+          recon = rawByte + a;
+          break;
+        case 2:
+          recon = rawByte + b;
+          break;
+        case 3:
+          recon = rawByte + ((a + b) >> 1);
+          break;
+        case 4:
+          recon = rawByte + paeth(a, b, c);
+          break;
+        default:
+          throw new Error(`unknown PNG filter type ${filter}`);
+      }
+      cur[x] = recon & 0xff;
+    }
+    prev = cur;
+  }
+  return { width, height, channels, pixels };
 }
 
 export const GAMMA = 2.2;
