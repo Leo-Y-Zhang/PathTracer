@@ -52,6 +52,7 @@ import { Transform, type TransformOpts } from './geometry/transform.js';
 import { loadObjTriangles } from './io/obj.js';
 import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
+import { skyBackground } from './sky.js';
 import type { Background } from './integrator.js';
 import type { ToneMapOp } from './png.js';
 import { readFileSync } from 'node:fs';
@@ -254,7 +255,18 @@ function parseBackground(json: unknown, path: string): Background {
       return lerp(bottom, top, t);
     };
   }
-  fail(`${path}.type`, 'one of solid | gradient', type);
+  if (type === 'sky') {
+    return skyBackground({
+      sunDirection: asVec3(b['sun'], `${path}.sun`),
+      sunColor: b['sunColor'] === undefined ? vec3(1, 0.95, 0.85) : asVec3(b['sunColor'], `${path}.sunColor`),
+      sunIntensity: b['sunIntensity'] === undefined ? 12 : asNumber(b['sunIntensity'], `${path}.sunIntensity`),
+      sunAngularRadius: b['sunAngle'] === undefined ? 0.05 : asNumber(b['sunAngle'], `${path}.sunAngle`),
+      zenith: b['zenith'] === undefined ? vec3(0.3, 0.5, 1) : asVec3(b['zenith'], `${path}.zenith`),
+      horizon: b['horizon'] === undefined ? vec3(0.9, 0.9, 0.95) : asVec3(b['horizon'], `${path}.horizon`),
+      ground: b['ground'] === undefined ? vec3(0.2, 0.2, 0.2) : asVec3(b['ground'], `${path}.ground`),
+    });
+  }
+  fail(`${path}.type`, 'one of solid | gradient | sky', type);
 }
 
 export function parseScene(json: unknown): SceneDescription {
