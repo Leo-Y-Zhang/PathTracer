@@ -15,7 +15,15 @@ describe('parseScene', () => {
     const s = parseScene(minimal);
     expect(s.name).toBe('scene');
     expect(s.objectCount).toBe(1);
-    expect(s.defaults).toEqual({ width: 480, height: 360, spp: 64, maxDepth: 32, seed: 1 });
+    expect(s.defaults).toEqual({
+      width: 480,
+      height: 360,
+      spp: 64,
+      maxDepth: 32,
+      seed: 1,
+      toneMapping: 'linear',
+      exposure: 1,
+    });
     expect(s.camera.aperture).toBe(0);
     expect(s.camera.up).toEqual(vec3(0, 1, 0));
   });

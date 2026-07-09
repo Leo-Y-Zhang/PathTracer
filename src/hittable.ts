@@ -12,6 +12,8 @@ export interface HitRecord {
   /** True when the ray hit the geometric outside of the surface. */
   frontFace: boolean;
   material: Material;
+  /** Surface texture coordinates in [0, 1]^2, when the geometry provides them. */
+  uv?: { u: number; v: number };
 }
 
 export interface Hittable {
