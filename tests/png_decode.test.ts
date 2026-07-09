@@ -90,6 +90,25 @@ describe('decodePng', () => {
   it('rejects a non-PNG buffer', () => {
     expect(() => decodePng(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))).toThrow(/bad signature/);
   });
+
+  it('throws when the inflated data is too short for the declared dimensions', () => {
+    // IHDR claims height 3 but only two scanlines of raw data are provided.
+    const w = 2;
+    const stride = w * 3;
+    const raw = Buffer.alloc(2 * (1 + stride));
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0);
+    ihdr.writeUInt32BE(3, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const png = Buffer.concat([
+      Buffer.from(PNG_SIGNATURE),
+      frameChunk('IHDR', ihdr),
+      frameChunk('IDAT', deflateSync(raw)),
+      frameChunk('IEND', new Uint8Array(0)),
+    ]);
+    expect(() => decodePng(png)).toThrow(/too short/);
+  });
 });
 
 describe('ImageTexture', () => {

@@ -15,6 +15,15 @@ export interface ObjMesh {
   faces: { v: number[]; vt: number[]; vn: number[] }[];
 }
 
+/** Parse a required finite OBJ coordinate, throwing on missing / non-finite input. */
+function num(token: string | undefined, ctx: string): number {
+  const n = Number(token);
+  if (token === undefined || token === '' || !Number.isFinite(n)) {
+    throw new Error(`OBJ: expected a finite number for ${ctx}, got "${token ?? ''}"`);
+  }
+  return n;
+}
+
 /** Resolve a 1-based (or negative-from-end) OBJ index against a running count. */
 function resolveIndex(token: string, count: number): number {
   const n = Number.parseInt(token, 10);
@@ -34,11 +43,11 @@ export function parseObj(text: string): ObjMesh {
     const parts = line.trim().split(/\s+/);
     const kw = parts[0];
     if (kw === 'v') {
-      positions.push(vec3(Number(parts[1]), Number(parts[2]), Number(parts[3])));
+      positions.push(vec3(num(parts[1], 'v.x'), num(parts[2], 'v.y'), num(parts[3], 'v.z')));
     } else if (kw === 'vn') {
-      normals.push(vec3(Number(parts[1]), Number(parts[2]), Number(parts[3])));
+      normals.push(vec3(num(parts[1], 'vn.x'), num(parts[2], 'vn.y'), num(parts[3], 'vn.z')));
     } else if (kw === 'vt') {
-      texcoords.push([Number(parts[1]), parts[2] === undefined ? 0 : Number(parts[2])]);
+      texcoords.push([num(parts[1], 'vt.u'), parts[2] === undefined ? 0 : num(parts[2], 'vt.v')]);
     } else if (kw === 'f') {
       const v: number[] = [];
       const vt: number[] = [];

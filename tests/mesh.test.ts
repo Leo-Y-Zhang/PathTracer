@@ -89,4 +89,12 @@ f 1/1/1 2/2/2 3/3/3 4/4/4
   it('throws on an out-of-range index', () => {
     expect(() => parseObj('v 0 0 0\nf 1 2 3\n')).toThrow(/out of range/);
   });
+
+  it('throws on a vertex with a missing coordinate', () => {
+    expect(() => parseObj('v 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n')).toThrow(/finite number/);
+  });
+
+  it('throws on a non-numeric (NaN) coordinate', () => {
+    expect(() => parseObj('v 0 0 nope\n')).toThrow(/finite number/);
+  });
 });
