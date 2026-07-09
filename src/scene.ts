@@ -48,9 +48,10 @@ import {
   TexturedLambertian,
   type Material,
 } from './materials.js';
-import { CheckerTexture, SolidColor, type Texture } from './texture.js';
+import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
 import type { Background } from './integrator.js';
+import { readFileSync } from 'node:fs';
 
 export interface SceneCamera {
   position: Vec3;
@@ -120,8 +121,12 @@ function parseTexture(json: unknown, path: string): Texture {
       const squares = t['squares'] === undefined ? 8 : asNumber(t['squares'], `${path}.squares`);
       return new CheckerTexture(asVec3(t['a'], `${path}.a`), asVec3(t['b'], `${path}.b`), squares);
     }
+    case 'image': {
+      const file = asString(t['path'], `${path}.path`);
+      return ImageTexture.fromPng(readFileSync(file));
+    }
     default:
-      fail(`${path}.type`, 'one of solid | checker', type);
+      fail(`${path}.type`, 'one of solid | checker | image', type);
   }
 }
 
