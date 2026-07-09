@@ -237,4 +237,4 @@ transforms**, **tone operators + sky**, **stratified sampling**, and a
 
 ## License
 
-MIT - Copyright (c) 2026 GreenPandaTech. See [LICENSE](LICENSE).
+Proprietary - All Rights Reserved (c) 2026 GreenPandaTech - portfolio viewing only. See [LICENSE](LICENSE).
