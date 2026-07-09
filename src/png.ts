@@ -154,6 +154,10 @@ export function decodePng(bytes: Uint8Array): DecodedPng {
 
   const raw = inflateSync(Buffer.concat(idat.map((p) => Buffer.from(p))));
   const stride = width * channels;
+  const expected = height * (1 + stride);
+  if (raw.length < expected) {
+    throw new Error(`PNG data too short: expected ${expected} bytes after inflate, got ${raw.length}`);
+  }
   const pixels = new Uint8Array(height * stride);
   let prev: Uint8Array | null = null;
   for (let y = 0; y < height; y++) {
