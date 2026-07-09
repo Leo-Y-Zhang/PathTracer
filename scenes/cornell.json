@@ -6,7 +6,7 @@
     "vfov": 40
   },
   "background": [0, 0, 0],
-  "render": { "width": 400, "height": 400, "spp": 700, "maxDepth": 32, "seed": 7 },
+  "render": { "width": 400, "height": 400, "spp": 250, "maxDepth": 32, "seed": 7 },
   "materials": {
     "white": { "type": "lambertian", "albedo": [0.73, 0.73, 0.73] },
     "red": { "type": "lambertian", "albedo": [0.65, 0.05, 0.05] },
