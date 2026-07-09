@@ -53,6 +53,7 @@ import { loadObjTriangles } from './io/obj.js';
 import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
 import type { Background } from './integrator.js';
+import type { ToneMapOp } from './png.js';
 import { readFileSync } from 'node:fs';
 
 export interface SceneCamera {
@@ -70,6 +71,8 @@ export interface SceneRenderDefaults {
   spp: number;
   maxDepth: number;
   seed: number;
+  toneMapping: ToneMapOp;
+  exposure: number;
 }
 
 export interface SceneDescription {
@@ -270,12 +273,18 @@ export function parseScene(json: unknown): SceneDescription {
   const background = parseBackground(root['background'], '$.background');
 
   const rd = root['render'] === undefined ? {} : asObject(root['render'], '$.render');
+  const tone = rd['toneMapping'];
+  if (tone !== undefined && tone !== 'linear' && tone !== 'reinhard' && tone !== 'aces') {
+    fail('$.render.toneMapping', 'one of linear | reinhard | aces', tone);
+  }
   const defaults: SceneRenderDefaults = {
     width: rd['width'] === undefined ? 480 : asNumber(rd['width'], '$.render.width'),
     height: rd['height'] === undefined ? 360 : asNumber(rd['height'], '$.render.height'),
     spp: rd['spp'] === undefined ? 64 : asNumber(rd['spp'], '$.render.spp'),
     maxDepth: rd['maxDepth'] === undefined ? 32 : asNumber(rd['maxDepth'], '$.render.maxDepth'),
     seed: rd['seed'] === undefined ? 1 : asNumber(rd['seed'], '$.render.seed'),
+    toneMapping: (tone as ToneMapOp | undefined) ?? 'linear',
+    exposure: rd['exposure'] === undefined ? 1 : asNumber(rd['exposure'], '$.render.exposure'),
   };
 
   const textures = new Map<string, Texture>();

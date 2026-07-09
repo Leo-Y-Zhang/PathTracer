@@ -111,7 +111,7 @@ export function main(argv: readonly string[]): void {
     scene.lights,
   );
 
-  const png = encodePng(width, height, toneMap(img));
+  const png = encodePng(width, height, toneMap(img, scene.defaults.toneMapping, scene.defaults.exposure));
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, png);
   const secs = ((Date.now() - started) / 1000).toFixed(1);
