@@ -8,7 +8,7 @@
     "focusDist": 6.0
   },
   "background": { "type": "gradient", "top": [0.35, 0.55, 0.95], "bottom": [0.95, 0.97, 1.0] },
-  "render": { "width": 480, "height": 360, "spp": 300, "maxDepth": 32, "seed": 11 },
+  "render": { "width": 480, "height": 360, "spp": 260, "maxDepth": 32, "seed": 11 },
   "materials": {
     "ground": { "type": "lambertian", "albedo": [0.52, 0.5, 0.46] },
     "glass": { "type": "dielectric", "ior": 1.5 },
