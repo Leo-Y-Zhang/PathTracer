@@ -1,0 +1,54 @@
+{
+  "name": "showcase",
+  "camera": {
+    "position": [0, 1.6, 6.5],
+    "lookAt": [0, 0.7, 0],
+    "vfov": 38,
+    "aperture": 0.06,
+    "focusDist": 6.5
+  },
+  "background": {
+    "type": "sky",
+    "sun": [0.4, 0.85, 0.35],
+    "sunColor": [1.0, 0.96, 0.88],
+    "sunIntensity": 9,
+    "sunAngle": 0.04,
+    "zenith": [0.32, 0.52, 1.0],
+    "horizon": [0.92, 0.93, 0.98],
+    "ground": [0.15, 0.15, 0.16]
+  },
+  "render": {
+    "width": 500,
+    "height": 320,
+    "spp": 320,
+    "maxDepth": 24,
+    "seed": 11,
+    "toneMapping": "aces",
+    "exposure": 1.15
+  },
+  "textures": {
+    "floor": { "type": "checker", "a": [0.9, 0.9, 0.9], "b": [0.14, 0.14, 0.15], "squares": 44 }
+  },
+  "materials": {
+    "ground": { "type": "textured_lambertian", "texture": "floor" },
+    "gold": { "type": "ggx", "albedo": [1.0, 0.78, 0.34], "roughness": 0.12 },
+    "copper": { "type": "ggx", "albedo": [0.95, 0.64, 0.54], "roughness": 0.34 },
+    "silver": { "type": "ggx", "albedo": [0.96, 0.96, 0.98], "roughness": 0.05 },
+    "glass": { "type": "dielectric", "ior": 1.5 },
+    "lamp": { "type": "emissive", "color": [1.0, 0.9, 0.72], "intensity": 24 }
+  },
+  "objects": [
+    { "type": "rect", "plane": "xz", "min": [-30, -30], "max": [30, 30], "k": 0, "material": "ground" },
+    { "type": "sphere", "center": [-2.4, 0.7, 0], "radius": 0.7, "material": "gold" },
+    { "type": "sphere", "center": [-0.8, 0.7, 0], "radius": 0.7, "material": "copper" },
+    { "type": "sphere", "center": [0.8, 0.7, 0.2], "radius": 0.7, "material": "silver" },
+    { "type": "sphere", "center": [2.4, 0.7, 0], "radius": 0.7, "material": "glass" },
+    {
+      "type": "transform",
+      "object": { "type": "box", "min": [-0.45, 0, -0.45], "max": [0.45, 1.5, 0.45], "material": "copper" },
+      "translate": [-3.7, 0, -1.6],
+      "rotate": [0, 32, 0]
+    },
+    { "type": "sphere", "center": [0, 4.2, -1.2], "radius": 0.7, "material": "lamp" }
+  ]
+}

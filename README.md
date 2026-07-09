@@ -8,42 +8,60 @@ rays of it through your scenes, pixel by pixel.
 A physically-based Monte Carlo path tracer written in TypeScript for Node,
 with **zero runtime dependencies**. It renders JSON-described scenes to PNG
 offline, **deterministically**: the same CLI invocation always produces
-byte-identical bytes. The test suite validates the *rendering physics* -
-energy conservation, sampling distributions, fresnel reflectance - not just
-the code.
+byte-identical bytes, single- or multi-threaded. It has **next-event estimation
+with multiple importance sampling**, a **GGX microfacet** material, **textures**
+(procedural + PNG-decoded), **triangle meshes** (OBJ, smooth normals) and affine
+**instance transforms**, filmic tone mapping, a sky model, stratified sampling
+and a **worker-thread tile renderer**. The test suite validates the *rendering
+physics* - energy conservation, unbiasedness, sampling distributions, fresnel -
+not just the code.
 
 ## Gallery
 
-All three images are rendered by this repository's code via `npm run
-render:all` (deterministic - re-running reproduces these exact files).
+All images are rendered by this repository's code via `npm run render:all`
+(deterministic - re-running reproduces these exact files).
 
-| Cornell box | Glass & metal (depth of field) | Emissive night |
+![Showcase: GGX metals, glass, checker texture, sky, depth of field](renders/showcase.png)
+
+*Showcase (500x320): gold / copper / silver GGX metals at rising roughness, a
+refracting glass sphere and a rotated box over a checker-textured floor under
+the analytic sky, with depth of field and ACES tone mapping.*
+
+| Cornell box (NEE) | Glass & metal (depth of field) | Emissive night (NEE) |
 | --- | --- | --- |
 | ![Cornell box](renders/cornell.png) | ![Glass and metal spheres](renders/spheres.png) | ![Night scene](renders/night.png) |
-| 400x400, 700 spp | 480x360, 300 spp | 480x360, 600 spp |
+| 400x400, 250 spp | 480x360, 260 spp | 480x360, 220 spp |
 
 ## Features
 
 - **Zero runtime dependencies.** `dependencies: {}`. The PNG encoder,
   CRC-32, RNG, vector math, BVH and integrator are all in-tree; the only
   outside code is raw DEFLATE injected from the `node:zlib` builtin.
-- **Geometry:** spheres, axis-aligned rects and boxes (slab test with exact
-  face normals), triangles (Moller-Trumbore); AABBs and a **median-split
-  BVH** (split on the axis of largest centroid extent - documented in
-  `src/bvh.ts`). BVH correctness is *proven in tests* by comparing every hit
-  against brute-force intersection over seeded random scenes.
-- **Materials:** lambertian with cosine-weighted hemisphere importance
-  sampling, metal with roughness, dielectric with Schlick fresnel and total
-  internal reflection, and diffuse emissive lights.
-- **Integrator:** iterative unidirectional path tracing with russian
-  roulette after 3 bounces. No next-event estimation (see Limitations).
-- **Camera:** thin lens - position / lookAt / vfov plus defocus blur
-  (aperture + focus distance).
-- **Deterministic:** own xorshift128 RNG (no `Math.random` anywhere); every
-  pixel sample gets a stream seeded purely from `(x, y, sampleIndex, seed)`,
-  so output is independent of traversal order and identical runs produce
-  byte-identical PNGs (asserted by SHA-256 in tests).
-- **Output:** 8-bit RGB PNG, gamma 2.2.
+- **Integrator:** unidirectional path tracing with **next-event estimation +
+  multiple importance sampling** (power heuristic) - light sampling and BSDF
+  sampling combined so small lights converge fast without bias - plus russian
+  roulette after 3 bounces. Tests prove NEE matches pure path tracing in the
+  mean (unbiased) while cutting variance sharply.
+- **Materials:** lambertian, textured lambertian, a physically-based **GGX
+  microfacet conductor** (Cook-Torrance D/G/F, energy-conserving, importance-
+  sampled), metal, dielectric (Schlick fresnel + TIR), and diffuse emissive
+  lights. Non-specular materials expose a BRDF + pdf so they work under NEE.
+- **Geometry:** spheres, axis-aligned rects and boxes, triangles
+  (Moller-Trumbore) with optional **smooth normals + UVs**, **OBJ triangle
+  meshes**, and affine **instance transforms** (translate / rotate / scale, so
+  geometry need not be axis-aligned). AABBs and a **median-split BVH** proven
+  in tests to match brute-force intersection. Rects and spheres also serve as
+  importance-sampled area lights.
+- **Textures:** procedural solid + checker, and PNG **image textures** decoded
+  by an in-tree PNG decoder (all five scanline filters, CRC-verified). UVs on
+  spheres, rects, boxes and meshes.
+- **Camera & output:** thin-lens camera with defocus blur; **linear / reinhard /
+  aces** tone operators with exposure; an analytic **sun + sky** background;
+  **stratified** sub-pixel sampling; 8-bit RGB PNG.
+- **Parallel & deterministic:** a **worker-thread tile renderer** whose output
+  is byte-identical to the single-threaded pass, backed by an xorshift128 RNG
+  seeded purely from `(x, y, sampleIndex, seed)` - no `Math.random` anywhere
+  (SHA-256-asserted in tests).
 
 ## Install
 
@@ -51,7 +69,7 @@ render:all` (deterministic - re-running reproduces these exact files).
 git clone <this repo>
 cd Helios
 npm ci
-npm test          # builds, then runs 126 tests (14 suites)
+npm test          # builds, then runs 190 tests (26 suites)
 npm run typecheck # strict tsc --noEmit (separate from npm test)
 ```
 
@@ -62,21 +80,22 @@ dependencies are `typescript`, `vitest`, and `@types/node`.
 
 ```bash
 npm run build
-node dist/cli.js render scenes/cornell.json --out renders/cornell.png --spp 256 --seed 7 --width 480
+node dist/cli.js render scenes/cornell.json --out renders/cornell.png --workers 4
 ```
 
-Real observed output (Node 25; the percentage line updates in place on stderr):
+Real observed output (Node 25; next-event estimation keeps the cornell scene
+clean at 250 spp, and four workers render it in seconds):
 
 ```text
-cornell: 480x480, 256 spp, seed 7, 8 objects
-cornell: 100% (480/480 rows)
-wrote renders/cornell.png (479518 bytes) in 56.4s
+cornell: rendering with 4 worker threads...
+wrote renders/cornell.png (285408 bytes) in 24.9s
 ```
 
-`npm run render:all` regenerates the whole committed gallery
-deterministically. Flags: `--out`, `--spp`, `--seed`, `--width`, `--height`,
-`--max-depth`; defaults come from the scene's `render` block, and `--width`
-alone preserves the scene's aspect ratio. Progress goes to stderr.
+`npm run render:all` regenerates the whole committed gallery deterministically.
+Flags: `--out`, `--spp`, `--seed`, `--width`, `--height`, `--max-depth`,
+`--workers`; defaults come from the scene's `render` block, and `--width` alone
+preserves the scene's aspect ratio. Multi-worker output is byte-identical to a
+single-threaded render. Progress goes to stderr.
 
 ## How path tracing works (honestly)
 
@@ -115,6 +134,11 @@ Tests validate physics against analytic ground truth, not snapshots:
 | --- | --- |
 | **Furnace test** (`tests/integrator.test.ts`) | albedo-0.5 sphere in a radiance-1 environment renders to mean 0.5 (and 0.8 -> 0.8) |
 | **White furnace / russian roulette** | multi-bounce albedo-1.0 enclosure converges to 1.0 - roulette is unbiased |
+| **Next-event estimation** (`tests/nee.test.ts`) | NEE matches pure path tracing in the mean (unbiased) and cuts variance >40% at low spp; deterministic |
+| **GGX energy** (`tests/ggx.test.ts`) | the GGX NDF integrates to 1; an albedo-1 rough-conductor white furnace never gains energy; BRDF reciprocal |
+| **Area-light sampling** (`tests/light_sampling.test.ts`) | rect / sphere light pdf validated against an independent uniform-direction solid-angle estimate |
+| **PNG decode** (`tests/png_decode.test.ts`) | encoder round-trip and all five scanline filters (Sub/Up/Average/Paeth) reconstructed |
+| **Parallel determinism** (`tests/parallel.test.ts`) | multi-worker render byte-identical to single-threaded |
 | **Cosine-weighted sampling** (`tests/materials.test.ts`) | mean cos(theta) = 2/3 (analytic value under pdf = cos/pi), correct hemisphere, uniform azimuth |
 | **Fresnel** | Schlick at normal incidence equals ((n1-n2)/(n1+n2))^2; grazing incidence -> 1 |
 | **Intersections** (`tests/sphere.test.ts`, `triangle`, `rect-box`) | hit t, point, normal and front-face flags against hand-computed values |
@@ -123,7 +147,7 @@ Tests validate physics against analytic ground truth, not snapshots:
 | **PNG format** (`tests/png.test.ts`) | signature, IHDR dimensions, chunk CRCs vs known answers, DEFLATE roundtrip |
 
 ```bash
-npm test          # 126 tests
+npm test          # 190 tests
 npx tsc --noEmit  # strict, noUncheckedIndexedAccess
 ```
 
@@ -134,24 +158,33 @@ src/
   vec3.ts             immutable vector math (pure functions)
   ray.ts              ray type + evaluation
   rng.ts              xorshift128 + per-pixel-sample seeding (determinism)
-  sampling.ts         unit sphere / disk / cosine-hemisphere samplers
+  sampling.ts         sphere / disk / cosine-hemisphere / stratified samplers
+  mat3.ts             3x3 matrices for instance transforms
   aabb.ts             axis-aligned bounding boxes (slab test)
-  hittable.ts         HitRecord, face-normal orientation, brute-force list
+  hittable.ts         HitRecord (incl. UVs), face-normal orientation, list
+  lights.ts           AreaLight sampling API + LightList (NEE)
+  microfacet.ts       GGX D / Smith G / Schlick F + half-vector sampling
+  texture.ts          solid / checker / PNG image textures
+  sky.ts              analytic sun + sky background
   geometry/
-    sphere.ts         quadratic intersection
-    rect.ts           axis-aligned rectangles (xy / xz / yz planes)
-    box.ts            axis-aligned solid boxes (slab test + face normals)
-    triangle.ts       Moller-Trumbore
+    sphere.ts         quadratic intersection + area-light sampling + UVs
+    rect.ts           axis-aligned rectangles + area-light sampling + UVs
+    box.ts            axis-aligned solid boxes
+    triangle.ts       Moller-Trumbore + optional smooth normals / UVs
+    transform.ts      affine instance transform (scale / rotate / translate)
+  io/obj.ts           Wavefront OBJ mesh loader
   bvh.ts              median-split BVH (documented strategy)
-  materials.ts        lambertian / metal / dielectric / emissive
+  materials.ts        lambertian / textured / GGX / metal / dielectric / emissive
   camera.ts           thin-lens camera (fov, aperture, focus distance)
-  integrator.ts       iterative path tracer + russian roulette + render loop
-  png.ts              PNG encoder (CRC-32 in-tree, DEFLATE from node:zlib), gamma 2.2 tone map
-  scene.ts            JSON scene schema parser (schema documented in the file header)
-  cli.ts              argument parsing, progress reporting, file output
-scenes/               three committed scenes (cornell, spheres, night)
+  integrator.ts       path tracer + NEE + MIS + row-band / full render
+  parallel.ts         worker_threads tile renderer (deterministic)
+  render-worker.ts    worker entry: parse scene + render a row band
+  png.ts              PNG encoder + decoder (CRC-32 in-tree) + tone operators
+  scene.ts            JSON scene schema parser (schema in the file header)
+  cli.ts              argument parsing, progress, --workers, file output
+scenes/               committed scenes (cornell, spheres, night, showcase)
 renders/              committed gallery PNGs, reproducible via render:all
-tests/                14 suites / 126 tests, including the furnace tests
+tests/                26 suites / 190 tests, including the furnace + NEE + GGX validations
 ```
 
 ### Scene format
@@ -163,40 +196,44 @@ Documented in full in the header of `src/scene.ts`. Shape:
   "name": "cornell",
   "camera": { "position": [x,y,z], "lookAt": [x,y,z], "vfov": 40,
               "aperture": 0.0, "focusDist": 10 },        // aperture/focusDist optional
-  "background": [r,g,b],                                  // or {type: gradient, top, bottom}
-  "render": { "width": 480, "height": 360, "spp": 256, "maxDepth": 32, "seed": 7 },
-  "materials": { "name": { "type": "lambertian|metal|dielectric|emissive", ... } },
-  "objects": [ { "type": "sphere|rect|box|triangle", ..., "material": "name" } ]
+  "background": [r,g,b],                                  // or {type: gradient|sky, ...}
+  "render": { "width": 480, "height": 360, "spp": 256, "maxDepth": 32, "seed": 7,
+              "toneMapping": "linear|reinhard|aces", "exposure": 1.0 },  // tone optional
+  "textures":  { "name": { "type": "solid|checker|image", ... } },        // optional
+  "materials": { "name": { "type": "lambertian|textured_lambertian|metal|dielectric|ggx|emissive", ... } },
+  "objects": [
+    { "type": "sphere|rect|box|triangle", ..., "material": "name" },
+    { "type": "mesh", "path": "model.obj", "material": "name" },
+    { "type": "transform", "object": { ... }, "translate": [x,y,z], "rotate": [x,y,z], "scale": 1.0 }
+  ]
 }
 ```
 
 ## Limitations (honest)
 
-- **No next-event estimation / light sampling.** Paths only find lights by
-  hitting them, so scenes with small or dim lights converge slowly. The
-  committed cornell scene compensates with a large area light and 700 spp;
-  it converges to a clean image but a NEE integrator would need far fewer
-  samples. This is a deliberate scope choice, not an oversight.
 - **Deterministic per environment, not across environments.** Byte-identical
-  output is guaranteed for repeated runs on the same Node/zlib build.
-  A different zlib could compress IDAT differently (the *pixels* would still
-  match; the bytes might not).
-- **Single-threaded.** No worker_threads; the gallery takes a few minutes.
-- **No textures, no spectral rendering, no denoising, no tone-mapping curve**
-  beyond plain gamma 2.2 (not the exact sRGB transfer function).
-- **Axis-aligned rects/boxes only** - no instancing or rotation transforms.
-- **Schlick approximation** for fresnel (exact only at normal incidence),
-  the standard tradeoff for a glass look without full Fresnel equations.
+  output is guaranteed for repeated runs on the same Node/zlib build (the
+  *pixels* always match; a different zlib could compress the IDAT differently).
+- **Single-scatter microfacets.** GGX models single scattering only, so a very
+  rough conductor loses a few percent of energy (multiple scattering is not
+  compensated). The white-furnace test bounds this.
+- **Sky is not sampled by NEE.** The analytic sky lights surfaces through BSDF
+  sampling only; emissive rects and spheres are the importance-sampled lights.
+- **No spectral rendering, participating media, denoising, or bidirectional /
+  MLT.** Fresnel uses the Schlick approximation (exact at normal incidence) and
+  the BVH is median-split (not SAH) - deliberate scope choices.
 
 ## Roadmap
 
-- Next-event estimation with multiple importance sampling (the single
-  biggest variance win available).
-- worker_threads tile renderer (embarrassingly parallel; per-pixel seeding
-  already makes results traversal-order independent).
-- Transforms (rotate/translate instances) for non-axis-aligned boxes.
-- Textures (checker, image) and a sky model beyond the two-color gradient.
-- Stratified / low-discrepancy sampling per pixel.
+- SAH BVH and a low-discrepancy (Sobol / Halton) sampler.
+- Multiple-scattering energy compensation for rough GGX.
+- Image-based (environment) lighting sampled by NEE.
+- Bidirectional path tracing / MLT for difficult indirect light.
+
+Done in 1.0.0: **next-event estimation + MIS**, **GGX microfacets**, **textures**
+(procedural + PNG image), **OBJ meshes + smooth normals**, **instance
+transforms**, **tone operators + sky**, **stratified sampling**, and a
+**worker-thread tile renderer**.
 
 ## License
 
