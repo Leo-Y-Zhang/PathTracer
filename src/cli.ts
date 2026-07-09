@@ -14,6 +14,7 @@ import { dirname } from 'node:path';
 import { parseScene } from './scene.js';
 import { Camera } from './camera.js';
 import { renderScene } from './integrator.js';
+import { renderSceneParallel } from './parallel.js';
 import { encodePng, toneMap } from './png.js';
 
 const USAGE = `usage: helios render <scene.json> [options]
@@ -25,6 +26,7 @@ options:
   --width <n>        image width (height scales to keep scene aspect unless --height given)
   --height <n>       image height
   --max-depth <n>    maximum path length (default: scene render.maxDepth)
+  --workers <n>      render with n worker threads (default: 1; output is identical)
 `;
 
 function fail(msg: string): never {
@@ -39,7 +41,7 @@ function parseIntFlag(value: string | undefined, name: string): number {
   return n;
 }
 
-export function main(argv: readonly string[]): void {
+export async function main(argv: readonly string[]): Promise<void> {
   const args = argv.slice(2);
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
     process.stderr.write(USAGE);
@@ -80,6 +82,7 @@ export function main(argv: readonly string[]): void {
   const spp = flags.has('spp') ? parseIntFlag(flags.get('spp'), 'spp') : d.spp;
   const seed = flags.has('seed') ? parseIntFlag(flags.get('seed'), 'seed') : d.seed;
   const maxDepth = flags.has('max-depth') ? parseIntFlag(flags.get('max-depth'), 'max-depth') : d.maxDepth;
+  const workers = flags.has('workers') ? parseIntFlag(flags.get('workers'), 'workers') : 1;
   const out = flags.get('out') ?? `renders/${scene.name}.png`;
 
   const camera = new Camera({
@@ -96,20 +99,20 @@ export function main(argv: readonly string[]): void {
     `${scene.name}: ${width}x${height}, ${spp} spp, seed ${seed}, ${scene.objectCount} objects\n`,
   );
   const started = Date.now();
-  const step = Math.max(1, Math.floor(height / 25));
-  const img = renderScene(
-    scene.world,
-    camera,
-    scene.background,
-    { width, height, spp, maxDepth, seed },
-    (row, rows) => {
+  const settings = { width, height, spp, maxDepth, seed };
+  let img: Float64Array;
+  if (workers > 1) {
+    process.stderr.write(`${scene.name}: rendering with ${workers} worker threads...`);
+    img = await renderSceneParallel(sceneJson, settings, { workers });
+  } else {
+    const step = Math.max(1, Math.floor(height / 25));
+    img = renderScene(scene.world, camera, scene.background, settings, (row, rows) => {
       if (row % step === 0 || row === rows) {
         const pct = ((100 * row) / rows).toFixed(0);
         process.stderr.write(`\r${scene.name}: ${pct}% (${row}/${rows} rows)`);
       }
-    },
-    scene.lights,
-  );
+    }, scene.lights);
+  }
 
   const png = encodePng(width, height, toneMap(img, scene.defaults.toneMapping, scene.defaults.exposure));
   mkdirSync(dirname(out), { recursive: true });
@@ -118,4 +121,7 @@ export function main(argv: readonly string[]): void {
   process.stderr.write(`\nwrote ${out} (${png.length} bytes) in ${secs}s\n`);
 }
 
-main(process.argv);
+main(process.argv).catch((err: unknown) => {
+  process.stderr.write(`\nerror: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.exit(1);
+});
