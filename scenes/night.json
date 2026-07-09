@@ -6,7 +6,7 @@
     "vfov": 42
   },
   "background": { "type": "gradient", "top": [0.02, 0.03, 0.08], "bottom": [0, 0, 0.01] },
-  "render": { "width": 480, "height": 360, "spp": 600, "maxDepth": 32, "seed": 5 },
+  "render": { "width": 480, "height": 360, "spp": 220, "maxDepth": 32, "seed": 5 },
   "materials": {
     "ground": { "type": "lambertian", "albedo": [0.14, 0.15, 0.13] },
     "chrome": { "type": "metal", "albedo": [0.9, 0.92, 0.95], "roughness": 0.04 },
