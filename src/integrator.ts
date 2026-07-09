@@ -132,6 +132,67 @@ export interface RenderSettings {
 }
 
 /**
+ * Average `spp` stratified samples for one pixel. Depends only on (x, y, spp,
+ * seed), so a pixel's value is independent of which rows/tiles/workers are
+ * rendered alongside it - this is what makes tiled and parallel rendering
+ * byte-identical to a single-threaded pass.
+ */
+function samplePixel(
+  x: number,
+  y: number,
+  world: Hittable,
+  camera: Camera,
+  background: Background,
+  settings: RenderSettings,
+  lights: LightList | undefined,
+): [number, number, number] {
+  const { width, height, spp, maxDepth, seed } = settings;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (let s = 0; s < spp; s++) {
+    const rng = pixelRng(x, y, s, seed);
+    const j = stratifiedOffset(s, spp, rng);
+    const u = (x + j.x) / width;
+    const v = 1 - (y + j.y) / height;
+    const c = trace(camera.getRay(u, v, rng), world, background, rng, maxDepth, lights);
+    // Guard against a degenerate sample poisoning the pixel.
+    if (Number.isFinite(c.x)) r += c.x;
+    if (Number.isFinite(c.y)) g += c.y;
+    if (Number.isFinite(c.z)) b += c.z;
+  }
+  return [r / spp, g / spp, b / spp];
+}
+
+/**
+ * Render the horizontal band of rows [rowStart, rowEnd) into a buffer of just
+ * those rows (length width*(rowEnd-rowStart)*3). Each band is independent, so
+ * concatenating bands reproduces a full renderScene exactly.
+ */
+export function renderRows(
+  world: Hittable,
+  camera: Camera,
+  background: Background,
+  settings: RenderSettings,
+  rowStart: number,
+  rowEnd: number,
+  lights?: LightList,
+): Float64Array {
+  const { width } = settings;
+  const img = new Float64Array(width * (rowEnd - rowStart) * 3);
+  for (let y = rowStart; y < rowEnd; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = samplePixel(x, y, world, camera, background, settings, lights);
+      const i = ((y - rowStart) * width + x) * 3;
+      img[i] = r;
+      img[i + 1] = g;
+      img[i + 2] = b;
+    }
+  }
+  return img;
+}
+
+/**
  * Render to a linear-radiance RGB buffer (row-major, top row first).
  * Deterministic: each sample's RNG is seeded only from (x, y, sample, seed).
  */
@@ -143,29 +204,16 @@ export function renderScene(
   onRow?: (rowsDone: number, totalRows: number) => void,
   lights?: LightList,
 ): Float64Array {
-  const { width, height, spp, maxDepth, seed } = settings;
+  const { width, height } = settings;
   const img = new Float64Array(width * height * 3);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      for (let s = 0; s < spp; s++) {
-        const rng = pixelRng(x, y, s, seed);
-        const j = stratifiedOffset(s, spp, rng);
-        const u = (x + j.x) / width;
-        const v = 1 - (y + j.y) / height;
-        const c = trace(camera.getRay(u, v, rng), world, background, rng, maxDepth, lights);
-        // Guard against a degenerate sample poisoning the pixel.
-        if (Number.isFinite(c.x)) r += c.x;
-        if (Number.isFinite(c.y)) g += c.y;
-        if (Number.isFinite(c.z)) b += c.z;
-      }
+      const [r, g, b] = samplePixel(x, y, world, camera, background, settings, lights);
       const i = (y * width + x) * 3;
-      img[i] = r / spp;
-      img[i + 1] = g / spp;
-      img[i + 2] = b / spp;
+      img[i] = r;
+      img[i + 1] = g;
+      img[i + 2] = b;
     }
     onRow?.(y + 1, height);
   }
