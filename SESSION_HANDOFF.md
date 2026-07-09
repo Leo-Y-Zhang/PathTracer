@@ -1,6 +1,10 @@
 # Session handoff — Helios "to the max" upgrade (repo #2)
 
-**Branch:** `upgrade/render-engine` (merge to `main` only after review + all-green).
+**STATUS: COMPLETE — v1.0.0 merged to main + tagged (2026-07-09).**
+193 tests, lint/typecheck/build clean, adversarial-reviewed (2 medium fixes,
+physics+determinism lenses clean). Repo #2 of the max-upgrade program done.
+
+**Branch:** `upgrade/render-engine` (merged + deleted).
 **Spec:** `docs/superpowers/specs/2026-07-08-render-engine-max-design.md` (approved).
 **Baseline:** 126 tests green, strict tsc clean, zero runtime deps, deterministic.
 
