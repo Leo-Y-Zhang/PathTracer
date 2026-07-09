@@ -194,14 +194,42 @@ export function decodePng(bytes: Uint8Array): DecodedPng {
 
 export const GAMMA = 2.2;
 
-/** Map linear radiance to 8-bit sRGB-ish values with a plain gamma 2.2 curve. */
-export function toneMap(hdr: Float64Array): Uint8Array {
+/** Tone-mapping operator applied to linear radiance before the gamma encode. */
+export type ToneMapOp = 'linear' | 'reinhard' | 'aces';
+
+/** ACES filmic approximation (Narkowicz 2015): maps [0, inf) into [0, 1). */
+function acesFilmic(x: number): number {
+  const a = 2.51;
+  const b = 0.03;
+  const c = 2.43;
+  const d = 0.59;
+  const e = 0.14;
+  return (x * (a * x + b)) / (x * (c * x + d) + e);
+}
+
+/**
+ * Map linear HDR radiance to 8-bit values: apply exposure, a tone-mapping
+ * operator (`linear` clip / `reinhard` / `aces`), then the gamma 2.2 encode.
+ * The defaults (linear, exposure 1) reproduce the original plain-gamma output.
+ */
+export function toneMap(hdr: Float64Array, op: ToneMapOp = 'linear', exposure = 1): Uint8Array {
   const out = new Uint8Array(hdr.length);
   const inv = 1 / GAMMA;
   for (let i = 0; i < hdr.length; i++) {
-    const v = hdr[i]!;
-    const clamped = Number.isNaN(v) ? 0 : Math.min(1, Math.max(0, v));
-    out[i] = Math.round(255 * Math.pow(clamped, inv));
+    const raw = hdr[i]!;
+    const v = Number.isNaN(raw) ? 0 : Math.max(0, raw * exposure);
+    let mapped: number;
+    switch (op) {
+      case 'reinhard':
+        mapped = v / (1 + v);
+        break;
+      case 'aces':
+        mapped = acesFilmic(v);
+        break;
+      default:
+        mapped = Math.min(1, v);
+    }
+    out[i] = Math.round(255 * Math.pow(Math.min(1, Math.max(0, mapped)), inv));
   }
   return out;
 }
