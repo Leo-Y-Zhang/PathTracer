@@ -1,4 +1,5 @@
-import type { Vec3 } from './vec3.js';
+import { vec3, type Vec3 } from './vec3.js';
+import { GAMMA, decodePng } from './png.js';
 
 /**
  * A spatially-varying colour, sampled at a surface's texture coordinates (and
@@ -33,5 +34,37 @@ export class CheckerTexture implements Texture {
   sample(u: number, v: number, _point: Vec3): Vec3 {
     const s = Math.floor(u * this.squares) + Math.floor(v * this.squares);
     return (((s % 2) + 2) % 2) === 0 ? this.a : this.b;
+  }
+}
+
+/**
+ * An image-backed texture decoded from a PNG. UVs wrap into [0, 1); v is flipped
+ * so texture row 0 is the top; nearest-neighbour lookup; the gamma-2.2-encoded
+ * bytes are converted back to linear radiance (textures are authored in sRGB).
+ */
+export class ImageTexture implements Texture {
+  private constructor(
+    private readonly width: number,
+    private readonly height: number,
+    private readonly channels: number,
+    private readonly pixels: Uint8Array,
+  ) {}
+
+  static fromPng(bytes: Uint8Array): ImageTexture {
+    const d = decodePng(bytes);
+    return new ImageTexture(d.width, d.height, d.channels, d.pixels);
+  }
+
+  sample(u: number, v: number, _point: Vec3): Vec3 {
+    const uu = u - Math.floor(u);
+    const vv = 1 - (v - Math.floor(v));
+    const x = Math.min(this.width - 1, Math.max(0, Math.floor(uu * this.width)));
+    const y = Math.min(this.height - 1, Math.max(0, Math.floor(vv * this.height)));
+    const i = (y * this.width + x) * this.channels;
+    return vec3(
+      Math.pow(this.pixels[i]! / 255, GAMMA),
+      Math.pow(this.pixels[i + 1]! / 255, GAMMA),
+      Math.pow(this.pixels[i + 2]! / 255, GAMMA),
+    );
   }
 }
