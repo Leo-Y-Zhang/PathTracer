@@ -30,7 +30,7 @@ cloud-synced). Program memory: project-repo-max-upgrades.
 5. [x] UVs on geometry + Texture interface + in-tree PNG decoder + textured mats
 6. [x] OBJ loader + smooth normals + instance transforms
 7. [x] Tone operators + sky model + stratified sampling
-8. [ ] worker_threads tile renderer (determinism preserved)
+8. [x] worker_threads tile renderer (determinism preserved)
 9. [ ] ESLint, gallery scenes, README/CHANGELOG, v1.0.0, review, merge+tag
 
 ## Progress

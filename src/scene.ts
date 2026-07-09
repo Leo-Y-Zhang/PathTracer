@@ -48,6 +48,7 @@ import {
   TexturedLambertian,
   type Material,
 } from './materials.js';
+import { Camera } from './camera.js';
 import { Transform, type TransformOpts } from './geometry/transform.js';
 import { loadObjTriangles } from './io/obj.js';
 import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
@@ -267,6 +268,19 @@ function parseBackground(json: unknown, path: string): Background {
     });
   }
   fail(`${path}.type`, 'one of solid | gradient | sky', type);
+}
+
+/** Build a Camera for a parsed scene at the target output dimensions. */
+export function cameraFor(scene: SceneDescription, width: number, height: number): Camera {
+  return new Camera({
+    position: scene.camera.position,
+    lookAt: scene.camera.lookAt,
+    up: scene.camera.up,
+    vfovDegrees: scene.camera.vfovDegrees,
+    aspect: width / height,
+    aperture: scene.camera.aperture,
+    ...(scene.camera.focusDist !== undefined ? { focusDist: scene.camera.focusDist } : {}),
+  });
 }
 
 export function parseScene(json: unknown): SceneDescription {
