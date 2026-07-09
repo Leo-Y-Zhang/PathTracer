@@ -48,6 +48,8 @@ import {
   TexturedLambertian,
   type Material,
 } from './materials.js';
+import { Transform, type TransformOpts } from './geometry/transform.js';
+import { loadObjTriangles } from './io/obj.js';
 import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
 import type { Background } from './integrator.js';
@@ -178,18 +180,16 @@ function parseObject(
 ): Hittable {
   const o = asObject(json, path);
   const type = asString(o['type'], `${path}.type`);
-  const matName = asString(o['material'], `${path}.material`);
-  const material = materials.get(matName);
-  if (!material) {
-    throw new Error(`scene: ${path}.material: unknown material "${matName}"`);
-  }
+  // Material is resolved lazily so wrapper objects (transform) need not carry one.
+  const mat = (): Material => {
+    const name = asString(o['material'], `${path}.material`);
+    const m = materials.get(name);
+    if (!m) throw new Error(`scene: ${path}.material: unknown material "${name}"`);
+    return m;
+  };
   switch (type) {
     case 'sphere':
-      return new Sphere(
-        asVec3(o['center'], `${path}.center`),
-        asNumber(o['radius'], `${path}.radius`),
-        material,
-      );
+      return new Sphere(asVec3(o['center'], `${path}.center`), asNumber(o['radius'], `${path}.radius`), mat());
     case 'rect': {
       const plane = asString(o['plane'], `${path}.plane`);
       if (plane !== 'xy' && plane !== 'xz' && plane !== 'yz') {
@@ -197,19 +197,34 @@ function parseObject(
       }
       const [a0, b0] = asVec2(o['min'], `${path}.min`);
       const [a1, b1] = asVec2(o['max'], `${path}.max`);
-      return new Rect(plane as RectPlane, a0, b0, a1, b1, asNumber(o['k'], `${path}.k`), material);
+      return new Rect(plane as RectPlane, a0, b0, a1, b1, asNumber(o['k'], `${path}.k`), mat());
     }
     case 'box':
-      return new Box(asVec3(o['min'], `${path}.min`), asVec3(o['max'], `${path}.max`), material);
+      return new Box(asVec3(o['min'], `${path}.min`), asVec3(o['max'], `${path}.max`), mat());
     case 'triangle':
       return new Triangle(
         asVec3(o['v0'], `${path}.v0`),
         asVec3(o['v1'], `${path}.v1`),
         asVec3(o['v2'], `${path}.v2`),
-        material,
+        mat(),
       );
+    case 'mesh': {
+      const file = asString(o['path'], `${path}.path`);
+      const tris = loadObjTriangles(readFileSync(file, 'utf8'), mat());
+      return tris.length > 0 ? BVHNode.build(tris) : new HittableList([]);
+    }
+    case 'transform': {
+      const child = parseObject(o['object'], `${path}.object`, materials);
+      const opts: TransformOpts = {};
+      if (o['translate'] !== undefined) opts.translate = asVec3(o['translate'], `${path}.translate`);
+      if (o['rotate'] !== undefined) opts.rotate = asVec3(o['rotate'], `${path}.rotate`);
+      if (o['scale'] !== undefined) {
+        opts.scale = typeof o['scale'] === 'number' ? o['scale'] : asVec3(o['scale'], `${path}.scale`);
+      }
+      return Transform.build(child, opts);
+    }
     default:
-      fail(`${path}.type`, 'one of sphere | rect | box | triangle', type);
+      fail(`${path}.type`, 'one of sphere | rect | box | triangle | mesh | transform', type);
   }
 }
 
