@@ -42,6 +42,14 @@ function isBlack(v: Vec3): boolean {
  * full, since NEE cannot sample a delta BSDF. This leaves the estimator
  * unbiased (the furnace tests still hold) while cutting variance sharply.
  *
+ * When the LightList carries an environment light, the background is one of
+ * the sampled lights, so the same bookkeeping extends to rays that leave the
+ * scene: an NEE shadow ray that escapes contributes the environment radiance
+ * (weighted by w_light), and a BSDF ray that escapes has its background
+ * contribution weighted by w_bsdf against the mixture pdf. Without an
+ * environment light the escape contribution stays unweighted, because the
+ * light-sampling strategy then has zero density on escaping directions.
+ *
  * Russian roulette starts after RR_START_DEPTH bounces: a path survives with
  * probability p = clamp(max(throughput)) and is compensated by 1/p.
  */
@@ -61,11 +69,19 @@ export function trace(
   let prevOrigin = r.origin;
   let prevPdfBsdf = 0;
   const nee = lights !== undefined && lights.count > 0;
+  const envNee = nee && lights.environment !== undefined;
 
   for (let depth = 0; depth < maxDepth; depth++) {
     const hit = world.hit(current, T_MIN, Infinity);
     if (!hit) {
-      radiance = add(radiance, mul(throughput, background(current)));
+      if (!envNee || specular) {
+        radiance = add(radiance, mul(throughput, background(current)));
+      } else {
+        // The environment is in the light mixture, so this escape could also
+        // have been reached by the light-sampling strategy: MIS-weight it.
+        const w = powerHeuristic(prevPdfBsdf, lights.pdf(prevOrigin, current.dir));
+        radiance = add(radiance, scale(mul(throughput, background(current)), w));
+      }
       break;
     }
 
@@ -90,13 +106,17 @@ export function trace(
         const cosL = dot(s.dir, hit.normal);
         if (cosL > 0) {
           const shadow = world.hit(ray(hit.point, s.dir), T_MIN, Infinity);
-          if (shadow && !isBlack(shadow.material.emitted())) {
+          // The sampled radiance: an emissive surface the shadow ray hits, or
+          // the environment when it escapes the scene entirely.
+          const emitted = shadow
+            ? shadow.material.emitted()
+            : envNee
+              ? lights.environment!.radiance(s.dir)
+              : ZERO;
+          if (!isBlack(emitted)) {
             const f = m.evalBrdf(wo, s.dir, hit);
             const w = powerHeuristic(s.pdf, m.scatterPdf(wo, s.dir, hit));
-            const contrib = scale(
-              mul(mul(throughput, f), shadow.material.emitted()),
-              (cosL * w) / s.pdf,
-            );
+            const contrib = scale(mul(mul(throughput, f), emitted), (cosL * w) / s.pdf);
             radiance = add(radiance, contrib);
           }
         }
