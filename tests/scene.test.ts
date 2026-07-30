@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseScene } from '../src/scene.js';
 import { ray } from '../src/ray.js';
 import { vec3 } from '../src/vec3.js';
+import { encodeHdr } from '../src/hdr.js';
 
 const minimal = {
   camera: { position: [0, 0, 0], lookAt: [0, 0, -1], vfov: 90 },
@@ -110,5 +113,49 @@ describe('parseScene', () => {
       expect(s.objectCount).toBeGreaterThan(0);
       expect(s.defaults.spp).toBeGreaterThan(0);
     }
+  });
+
+  it('parses a constant environment as both miss shader and NEE light', () => {
+    const s = parseScene({
+      ...minimal,
+      environment: { type: 'constant', color: [0.5, 0.25, 1], intensity: 2 },
+    });
+    expect(s.background(ray(vec3(0, 0, 0), vec3(0, 1, 0)))).toEqual(vec3(1, 0.5, 2));
+    expect(s.lights.count).toBe(1); // the environment joins the light mixture
+    expect(s.lights.environment).toBeDefined();
+    expect(s.lights.lights.length).toBe(0); // no emissive geometry in this scene
+  });
+
+  it('parses an image environment from a .hdr file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'helios-'));
+    try {
+      const file = join(dir, 'env.hdr');
+      writeFileSync(file, encodeHdr(8, 4, new Float64Array(8 * 4 * 3).fill(0.5)));
+      const s = parseScene({ ...minimal, environment: { type: 'image', path: file } });
+      // 0.5 is exactly representable in RGBE.
+      expect(s.background(ray(vec3(0, 0, 0), vec3(1, 0, 0)))).toEqual(vec3(0.5, 0.5, 0.5));
+      expect(s.lights.count).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an environment combined with a background', () => {
+    const bad = {
+      ...minimal,
+      background: [0, 0, 0],
+      environment: { type: 'constant', color: [1, 1, 1] },
+    };
+    expect(() => parseScene(bad)).toThrow(/cannot be combined/);
+  });
+
+  it('rejects an unknown environment type', () => {
+    const bad = { ...minimal, environment: { type: 'cubemap', path: 'x.hdr' } };
+    expect(() => parseScene(bad)).toThrow(/\$\.environment\.type/);
+  });
+
+  it('rejects a negative environment intensity', () => {
+    const bad = { ...minimal, environment: { type: 'constant', color: [1, 1, 1], intensity: -1 } };
+    expect(() => parseScene(bad)).toThrow(/\$\.environment\.intensity/);
   });
 });
