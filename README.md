@@ -103,11 +103,11 @@ node dist/cli.js render scenes/cornell.json --out renders/cornell.png --workers 
 ```
 
 Real observed output (Node 25; next-event estimation keeps the cornell scene
-clean at 250 spp, and four workers render it in seconds):
+clean at 250 spp, and four workers render it in about half a minute):
 
 ```text
 cornell: rendering with 4 worker threads...
-wrote renders/cornell.png (285408 bytes) in 24.9s
+wrote renders/cornell.png (285408 bytes) in 33.9s
 ```
 
 `npm run render:all` regenerates the whole committed gallery deterministically.
@@ -250,6 +250,12 @@ Documented in full in the header of `src/scene.ts`. Shape:
   `background` lights surfaces through BSDF sampling only; for an
   importance-sampled sky, use an `environment` (constant or `.hdr` image),
   which joins emissive rects and spheres in the NEE mixture.
+- **The environment map is nearest-texel sampled** (no bilinear filtering) - a
+  deliberate choice that keeps the sampling pdf and the returned radiance
+  exactly consistent per texel (which is what the quadrature test proves), at
+  the cost of visible texels if a low-resolution map fills the background. The
+  `.hdr` decoder accepts the standard `-Y h +X w` orientation only; anything
+  else is rejected with a clear error.
 - **No spectral rendering, participating media, denoising, or bidirectional /
   MLT.** Fresnel uses the Schlick approximation (exact at normal incidence) and
   the BVH is median-split (not SAH) - deliberate scope choices.
@@ -271,4 +277,5 @@ transforms**, **tone operators + sky**, **stratified sampling**, and a
 
 ## License
 
-Proprietary - All Rights Reserved (c) 2026 GreenPandaTech - portfolio viewing only. See [LICENSE](LICENSE).
+Proprietary source-available - Copyright (c) 2026 Leo Y. Zhang. You may read,
+run and check it; no reuse rights are granted. See [LICENSE](LICENSE).
