@@ -102,6 +102,25 @@ describe('parseScene', () => {
     expect(() => parseScene(bad)).toThrow(/roughness/);
   });
 
+  it('parses a rough_dielectric material', () => {
+    const s = parseScene({
+      ...minimal,
+      materials: { frost: { type: 'rough_dielectric', ior: 1.5, roughness: 0.4 } },
+      objects: [{ type: 'sphere', center: [0, 0, -3], radius: 1, material: 'frost' }],
+    });
+    expect(s.objectCount).toBe(1);
+  });
+
+  it('rejects a rough_dielectric without an ior', () => {
+    const bad = { ...minimal, materials: { frost: { type: 'rough_dielectric', roughness: 0.4 } } };
+    expect(() => parseScene(bad)).toThrow(/\$\.materials\.frost\.ior/);
+  });
+
+  it('rejects rough_dielectric roughness outside [0, 1]', () => {
+    const bad = { ...minimal, materials: { frost: { type: 'rough_dielectric', ior: 1.5, roughness: -0.1 } } };
+    expect(() => parseScene(bad)).toThrow(/roughness/);
+  });
+
   it('rejects a scene without an objects array', () => {
     const bad = { camera: minimal.camera, materials: {} };
     expect(() => parseScene(bad)).toThrow(/\$\.objects/);

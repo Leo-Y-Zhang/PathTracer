@@ -38,6 +38,24 @@ export function fresnelSchlick(cosTheta: number, f0: Vec3): Vec3 {
   return add(f0, scale(sub(ONE, f0), m));
 }
 
+/**
+ * Exact unpolarised Fresnel reflectance for a dielectric interface. `cosI` is
+ * the incident cosine against the (micro-)normal and `etaRel` the ratio
+ * eta_incident / eta_transmitted, matching `refract`'s convention. Returns 1
+ * beyond the critical angle (total internal reflection). At normal incidence
+ * this equals ((1 - etaRel) / (1 + etaRel))^2, the r0 that
+ * `schlickReflectance` approximates from.
+ */
+export function fresnelDielectric(cosI: number, etaRel: number): number {
+  const c = Math.min(1, Math.max(0, cosI));
+  const sin2T = etaRel * etaRel * (1 - c * c);
+  if (sin2T >= 1) return 1; // total internal reflection
+  const cosT = Math.sqrt(1 - sin2T);
+  const rPar = (c - etaRel * cosT) / (c + etaRel * cosT);
+  const rPerp = (etaRel * c - cosT) / (etaRel * c + cosT);
+  return 0.5 * (rPar * rPar + rPerp * rPerp);
+}
+
 /** Sample a half-vector from the GGX NDF around the surface normal n. */
 export function sampleGGXNormal(n: Vec3, alpha: number, rng: Rng): Vec3 {
   const u1 = rng.float();
