@@ -13,6 +13,10 @@
  *   "background": [r,g,b]                     // solid colour, or:
  *              | { "type": "solid", "color": [r,g,b] }
  *              | { "type": "gradient", "top": [r,g,b], "bottom": [r,g,b] },
+ *   "environment":                            // NEE-sampled light + miss shader
+ *       { "type": "image", "path": "sky.hdr", "intensity": 1 }   // equirect .hdr
+ *     | { "type": "constant", "color": [r,g,b], "intensity": 1 },
+ *     // mutually exclusive with "background": the environment IS the background
  *   "render": { "width": 480, "height": 360, "spp": 256,
  *               "maxDepth": 32, "seed": 7 },  // optional defaults for the CLI
  *   "materials": {
@@ -53,6 +57,7 @@ import { Transform, type TransformOpts } from './geometry/transform.js';
 import { loadObjTriangles } from './io/obj.js';
 import { CheckerTexture, ImageTexture, SolidColor, type Texture } from './texture.js';
 import { LightList, type LightPrimitive } from './lights.js';
+import { ConstantEnvironment, EnvironmentMap, type EnvironmentLight } from './envlight.js';
 import { skyBackground } from './sky.js';
 import type { Background } from './integrator.js';
 import type { ToneMapOp } from './png.js';
@@ -83,7 +88,7 @@ export interface SceneDescription {
   background: Background;
   /** BVH over all objects (brute-force list when the scene is empty). */
   world: Hittable;
-  /** Emissive rects/spheres, for next-event estimation (empty = pure path tracing). */
+  /** Emissive rects/spheres + optional environment, for next-event estimation. */
   lights: LightList;
   objectCount: number;
   defaults: SceneRenderDefaults;
@@ -270,6 +275,21 @@ function parseBackground(json: unknown, path: string): Background {
   fail(`${path}.type`, 'one of solid | gradient | sky', type);
 }
 
+function parseEnvironment(json: unknown, path: string): EnvironmentLight {
+  const e = asObject(json, path);
+  const type = asString(e['type'], `${path}.type`);
+  const intensity = e['intensity'] === undefined ? 1 : asNumber(e['intensity'], `${path}.intensity`);
+  if (intensity < 0) fail(`${path}.intensity`, 'a non-negative number', intensity);
+  switch (type) {
+    case 'image':
+      return EnvironmentMap.fromHdr(readFileSync(asString(e['path'], `${path}.path`)), intensity);
+    case 'constant':
+      return new ConstantEnvironment(asVec3(e['color'], `${path}.color`), intensity);
+    default:
+      fail(`${path}.type`, 'one of image | constant', type);
+  }
+}
+
 /** Build a Camera for a parsed scene at the target output dimensions. */
 export function cameraFor(scene: SceneDescription, width: number, height: number): Camera {
   return new Camera({
@@ -296,7 +316,16 @@ export function parseScene(json: unknown): SceneDescription {
     focusDist: cam['focusDist'] === undefined ? undefined : asNumber(cam['focusDist'], '$.camera.focusDist'),
   };
 
-  const background = parseBackground(root['background'], '$.background');
+  // The environment doubles as the miss shader, so it excludes "background";
+  // both being present would leave escaping rays with two sources of truth.
+  const envJson = root['environment'];
+  if (envJson !== undefined && root['background'] !== undefined) {
+    throw new Error('scene: $.environment: cannot be combined with $.background');
+  }
+  const environment = envJson === undefined ? undefined : parseEnvironment(envJson, '$.environment');
+  const background: Background = environment
+    ? (r) => environment.radiance(r.dir)
+    : parseBackground(root['background'], '$.background');
 
   const rd = root['render'] === undefined ? {} : asObject(root['render'], '$.render');
   const tone = rd['toneMapping'];
@@ -331,7 +360,8 @@ export function parseScene(json: unknown): SceneDescription {
 
   const world: Hittable = objects.length > 0 ? BVHNode.build(objects) : new HittableList([]);
 
-  // Emissive rects and spheres double as importance-sampled lights for NEE.
+  // Emissive rects and spheres double as importance-sampled lights for NEE;
+  // a declared environment joins them as one more mixture component.
   const lights = objects.filter(
     (o): o is LightPrimitive =>
       (o instanceof Rect || o instanceof Sphere) && o.material instanceof Emissive,
@@ -342,7 +372,7 @@ export function parseScene(json: unknown): SceneDescription {
     camera,
     background,
     world,
-    lights: new LightList(lights),
+    lights: new LightList(lights, environment),
     objectCount: objects.length,
     defaults,
   };
