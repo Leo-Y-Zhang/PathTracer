@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && vitest run",
-    "render:all": "npm run build && node dist/cli.js render scenes/cornell.json --out renders/cornell.png --workers 4 && node dist/cli.js render scenes/spheres.json --out renders/spheres.png --workers 4 && node dist/cli.js render scenes/night.json --out renders/night.png --workers 4 && node dist/cli.js render scenes/showcase.json --out renders/showcase.png --workers 4"
+    "assets:all": "npm run build && node dist/tools/make-sky-hdr.js assets/sky.hdr && node dist/tools/make-knot-obj.js assets/knot.obj",
+    "render:all": "npm run build && node dist/cli.js render scenes/cornell.json --out renders/cornell.png --workers 4 && node dist/cli.js render scenes/spheres.json --out renders/spheres.png --workers 4 && node dist/cli.js render scenes/night.json --out renders/night.png --workers 4 && node dist/cli.js render scenes/showcase.json --out renders/showcase.png --workers 4 && node dist/cli.js render scenes/skylight.json --out renders/skylight.png --workers 4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
