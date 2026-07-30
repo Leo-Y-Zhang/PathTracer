@@ -23,6 +23,8 @@
  *     "name": { "type": "lambertian", "albedo": [r,g,b] }
  *           | { "type": "metal", "albedo": [r,g,b], "roughness": 0.1 }
  *           | { "type": "dielectric", "ior": 1.5 }
+ *           | { "type": "rough_dielectric", "ior": 1.5, "roughness": 0.4 }
+ *           | { "type": "ggx", "albedo": [r,g,b], "roughness": 0.2 }
  *           | { "type": "emissive", "color": [r,g,b], "intensity": 15 }
  *   },
  *   "objects": [
@@ -47,6 +49,7 @@ import {
   Dielectric,
   Emissive,
   GGXConductor,
+  GGXDielectric,
   Lambertian,
   Metal,
   TexturedLambertian,
@@ -165,6 +168,11 @@ function parseMaterial(
     }
     case 'dielectric':
       return new Dielectric(asNumber(m['ior'], `${path}.ior`));
+    case 'rough_dielectric': {
+      const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
+      if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
+      return new GGXDielectric(asNumber(m['ior'], `${path}.ior`), roughness);
+    }
     case 'ggx': {
       const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
       if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
@@ -177,7 +185,7 @@ function parseMaterial(
     default:
       fail(
         `${path}.type`,
-        'one of lambertian | textured_lambertian | metal | dielectric | ggx | emissive',
+        'one of lambertian | textured_lambertian | metal | dielectric | rough_dielectric | ggx | emissive',
         type,
       );
   }

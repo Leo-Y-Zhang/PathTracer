@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dot, scale, vec3 } from '../src/vec3.js';
 import { ray } from '../src/ray.js';
 import { Rng } from '../src/rng.js';
-import { Dielectric, Emissive, Lambertian, Metal, type Material } from '../src/materials.js';
+import { Dielectric, Emissive, GGXDielectric, Lambertian, Metal, type Material } from '../src/materials.js';
 import type { HitRecord } from '../src/hittable.js';
 import { expectVecClose } from './helpers.js';
 
@@ -52,6 +52,7 @@ describe('specular materials expose no finite BRDF or pdf', () => {
     new Metal(vec3(1, 1, 1), 0),
     new Metal(vec3(0.8, 0.8, 0.8), 0.3),
     new Dielectric(1.5),
+    new GGXDielectric(1.5, 0.5),
     new Emissive(vec3(1, 1, 1), 3),
   ];
 
