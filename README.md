@@ -11,7 +11,8 @@ offline, **deterministically**: the same CLI invocation always produces
 byte-identical bytes, single- or multi-threaded. It has **next-event estimation
 with multiple importance sampling**, **HDR image-based lighting** (an in-tree
 Radiance `.hdr` decoder + a luminance-weighted environment sampler inside the
-NEE mixture), a **GGX microfacet** material, **textures** (procedural +
+NEE mixture), **energy-compensated GGX microfacet** materials (conductor +
+frosted glass), **textures** (procedural +
 PNG-decoded), **triangle meshes** (OBJ, smooth normals) and affine **instance
 transforms**, filmic tone mapping, a sky model, stratified sampling and a
 **worker-thread tile renderer**. The test suite validates the *rendering
@@ -61,9 +62,15 @@ the analytic sky, with depth of field and ACES tone mapping.*
   shader - so the sampler and the background cannot disagree. A constant-color
   environment variant doubles as the furnace-test light.
 - **Materials:** lambertian, textured lambertian, a physically-based **GGX
-  microfacet conductor** (Cook-Torrance D/G/F, energy-conserving, importance-
-  sampled), metal, dielectric (Schlick fresnel + TIR), and diffuse emissive
-  lights. Non-specular materials expose a BRDF + pdf so they work under NEE.
+  microfacet conductor** (Cook-Torrance D/G/F, importance-sampled) with
+  **Kulla-Conty multiple-scattering energy compensation** - deterministic
+  quadrature energy tables built at material construction (no baked data, so
+  they can never drift from the BRDF they compensate); an albedo-1 furnace
+  closes to 1 at every roughness instead of dropping to 0.32 - a **rough
+  dielectric** (frosted glass: Walter 2007 GGX reflection + refraction, exact
+  dielectric Fresnel, per-side energy scaling), metal, smooth dielectric
+  (Schlick fresnel + TIR), and diffuse emissive lights. Non-specular
+  materials expose a BRDF + pdf so they work under NEE.
 - **Geometry:** spheres, axis-aligned rects and boxes, triangles
   (Moller-Trumbore) with optional **smooth normals + UVs**, **OBJ triangle
   meshes**, and affine **instance transforms** (translate / rotate / scale, so
@@ -87,7 +94,7 @@ the analytic sky, with depth of field and ACES tone mapping.*
 git clone <this repo>
 cd Helios
 npm ci
-npm test          # builds, then runs 240 tests (30 suites)
+npm test          # builds, then runs 274 tests (32 suites)
 npm run typecheck # strict tsc --noEmit (separate from npm test)
 ```
 
@@ -157,6 +164,8 @@ Tests validate physics against analytic ground truth, not snapshots:
 | **Env-sampling pdf** (`tests/envlight.test.ts`) | the environment pdf integrates to exactly 1 (texel-aligned quadrature), matches an independent uniform-direction solid-angle estimate, and E[1/pdf] over its own samples is 4 pi |
 | **Next-event estimation** (`tests/nee.test.ts`) | NEE matches pure path tracing in the mean (unbiased) and cuts variance >40% at low spp; deterministic |
 | **GGX energy** (`tests/ggx.test.ts`) | the GGX NDF integrates to 1; an albedo-1 rough-conductor white furnace never gains energy; BRDF reciprocal |
+| **GGX energy compensation** (`tests/ggx_energy.test.ts`) | the albedo-1 conductor furnace closes to (0.98, 1.02) at every roughness with the Kulla-Conty ms lobe (0.32 at roughness 1 without it); quadrature E(mu) matches independent Monte Carlo over the actual sampler; E[cos/pdf] = pi (the pdf is the true mixture density); reciprocity holds with the ms lobe; compensation only adds energy |
+| **Rough dielectric** (`tests/rough_dielectric.test.ts`) | exact Fresnel: analytic r0, TIR beyond the critical angle, interface symmetry, Schlick agreement; the frosted-glass furnace closes at every roughness (0.36 at roughness 1 uncompensated); roughness-0 renders match the smooth Dielectric |
 | **Area-light sampling** (`tests/light_sampling.test.ts`) | rect / sphere light pdf validated against an independent uniform-direction solid-angle estimate |
 | **PNG decode** (`tests/png_decode.test.ts`) | encoder round-trip and all five scanline filters (Sub/Up/Average/Paeth) reconstructed |
 | **RGBE / .hdr codec** (`tests/hdr.test.ts`) | known-answer RGBE conversions, RLE + flat scanline round-trips, header/format rejection, EXPOSURE applied |
@@ -169,7 +178,7 @@ Tests validate physics against analytic ground truth, not snapshots:
 | **PNG format** (`tests/png.test.ts`) | signature, IHDR dimensions, chunk CRCs vs known answers, DEFLATE roundtrip |
 
 ```bash
-npm test          # 240 tests
+npm test          # 274 tests
 npx tsc --noEmit  # strict, noUncheckedIndexedAccess
 ```
 
@@ -187,7 +196,8 @@ src/
   lights.ts           AreaLight sampling API + LightList (NEE, incl. environment)
   hdr.ts              Radiance RGBE (.hdr) codec - header, RLE/flat scanlines
   envlight.ts         environment lights: constant + equirect map (2D CDF)
-  microfacet.ts       GGX D / Smith G / Schlick F + half-vector sampling
+  microfacet.ts       GGX D / Smith G / Schlick + exact dielectric fresnel + half-vector sampling
+  ggx-energy.ts       deterministic E(mu)/E_avg quadrature tables (energy compensation)
   texture.ts          solid / checker / PNG image textures
   sky.ts              analytic sun + sky background
   geometry/
@@ -198,7 +208,7 @@ src/
     transform.ts      affine instance transform (scale / rotate / translate)
   io/obj.ts           Wavefront OBJ mesh loader
   bvh.ts              median-split BVH (documented strategy)
-  materials.ts        lambertian / textured / GGX / metal / dielectric / emissive
+  materials.ts        lambertian / textured / GGX + ms lobe / metal / dielectrics / emissive
   camera.ts           thin-lens camera (fov, aperture, focus distance)
   integrator.ts       path tracer + NEE + MIS + row-band / full render
   parallel.ts         worker_threads tile renderer (deterministic)
@@ -210,7 +220,7 @@ src/
 scenes/               committed scenes (cornell, spheres, night, showcase, skylight)
 assets/               committed .hdr + .obj, regenerated exactly by assets:all
 renders/              committed gallery PNGs, reproducible via render:all
-tests/                30 suites / 240 tests, including the furnace + NEE + GGX + environment validations
+tests/                32 suites / 274 tests, including the furnace + NEE + GGX + environment validations
 ```
 
 ### Scene format
@@ -229,7 +239,7 @@ Documented in full in the header of `src/scene.ts`. Shape:
   "render": { "width": 480, "height": 360, "spp": 256, "maxDepth": 32, "seed": 7,
               "toneMapping": "linear|reinhard|aces", "exposure": 1.0 },  // tone optional
   "textures":  { "name": { "type": "solid|checker|image", ... } },        // optional
-  "materials": { "name": { "type": "lambertian|textured_lambertian|metal|dielectric|ggx|emissive", ... } },
+  "materials": { "name": { "type": "lambertian|textured_lambertian|metal|dielectric|rough_dielectric|ggx|emissive", ... } },
   "objects": [
     { "type": "sphere|rect|box|triangle", ..., "material": "name" },
     { "type": "mesh", "path": "model.obj", "material": "name" },
@@ -243,9 +253,15 @@ Documented in full in the header of `src/scene.ts`. Shape:
 - **Deterministic per environment, not across environments.** Byte-identical
   output is guaranteed for repeated runs on the same Node/zlib build (the
   *pixels* always match; a different zlib could compress the IDAT differently).
-- **Single-scatter microfacets.** GGX models single scattering only, so a very
-  rough conductor loses a few percent of energy (multiple scattering is not
-  compensated). The white-furnace test bounds this.
+- **The rough dielectric compensates by scaling, not a reciprocal lobe.** The
+  GGX conductor's Kulla-Conty multiple-scattering lobe is reciprocal; the
+  rough dielectric instead scales Walter's throughput weight by 1/E(mu_o),
+  which closes the furnace exactly but breaks reciprocity (a non-issue for
+  this camera-only unidirectional tracer). It is also NEE-skipped like the
+  smooth dielectric, which costs variance (never bias) under small lights.
+  High-IOR frosted glass converges slowly - heavy-tailed weights in deep
+  TIR chains produce fireflies at low sample counts; measured figures are in
+  the `GGXDielectric` docblock (`src/materials.ts`).
 - **The analytic sky is not sampled by NEE.** The procedural sun + sky
   `background` lights surfaces through BSDF sampling only; for an
   importance-sampled sky, use an `environment` (constant or `.hdr` image),
@@ -263,8 +279,14 @@ Documented in full in the header of `src/scene.ts`. Shape:
 ## Roadmap
 
 - SAH BVH and a low-discrepancy (Sobol / Halton) sampler.
-- Multiple-scattering energy compensation for rough GGX.
+- A transmission eval/pdf pair so NEE can sample the rough dielectric directly.
 - Bidirectional path tracing / MLT for difficult indirect light.
+
+Done in 1.2.0: **GGX multiple-scattering energy compensation** (a reciprocal
+Kulla-Conty ms lobe for conductors, deterministic quadrature energy tables
+built at material construction) and a **rough dielectric** (frosted glass)
+material - the albedo-1 furnaces now close at every roughness (the conductor
+furnace read 0.32 at roughness 1 before).
 
 Done in 1.1.0: **HDR image-based lighting sampled by NEE** (in-tree RGBE codec,
 luminance-weighted CDF, environment furnace test) and the **skylight** gallery
