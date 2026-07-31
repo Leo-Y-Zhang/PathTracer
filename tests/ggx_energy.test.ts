@@ -96,7 +96,7 @@ describe('conductorEnergy: deterministic quadrature vs independent Monte Carlo',
     const e1 = conductorEnergy(1).directional(0.8);
     expect(e04).toBeGreaterThan(e1);
     expect(e1).toBeGreaterThan(0.2);
-    expect(e1).toBeLessThan(0.6); // measured 0.38 on this BRDF (separable Smith)
+    expect(e1).toBeLessThan(0.6); // measured 0.34 on this BRDF (separable Smith; E_avg is 0.38)
   });
 });
 
@@ -179,6 +179,14 @@ describe('compensated conductor: pointwise and estimator identities', () => {
       expect(fc.y).toBeGreaterThanOrEqual(fs.y);
       expect(fc.z).toBeGreaterThanOrEqual(fs.z);
     }
+  });
+
+  it('rejects a NaN or out-of-range roughness at construction', () => {
+    // A NaN roughness would silently bake an all-NaN energy table and render
+    // pure black; the constructor must fail loudly instead.
+    expect(() => new GGXConductor(vec3(1, 1, 1), Number.NaN)).toThrow(/roughness/);
+    expect(() => new GGXConductor(vec3(1, 1, 1), 1.5)).toThrow(/roughness/);
+    expect(() => new GGXConductor(vec3(1, 1, 1), -0.1)).toThrow(/roughness/);
   });
 
   it('a black conductor (F0 = 0) stays finite and nearly dark', () => {
