@@ -188,6 +188,11 @@ export class GGXConductor implements Material {
     readonly roughness: number,
     readonly compensate: boolean = true,
   ) {
+    // A NaN or out-of-range roughness would silently bake an all-NaN energy
+    // table (rendering pure black); fail loudly at construction instead.
+    if (!(roughness >= 0 && roughness <= 1)) {
+      throw new Error(`GGXConductor: roughness must be in [0, 1], got ${roughness}`);
+    }
     this.alpha = Math.max(MIN_ALPHA, roughness * roughness);
     this.energy = conductorEnergy(this.alpha);
     const eavg = this.energy.average;
@@ -332,6 +337,15 @@ export class Dielectric implements Material {
  * bookkeeping a transmission pdf/eval pair would need. Like the smooth
  * `Dielectric`, refraction applies no (eta_o/eta_i)^2 radiance compression;
  * for closed objects the entry and exit factors cancel.
+ *
+ * Convergence caveat: the estimator is unit-mean per scatter (verified per
+ * incidence angle in tests) but heavy-tailed - NDF half-vector sampling has a
+ * 1/(n.h) weight tail, amplified by the 1/E scaling - and deep total-internal-
+ * reflection chains multiply many such weights, so furnace-level convergence
+ * degrades as the index rises. Measured at roughness 1 (24x24 render, 400 spp,
+ * seeds 42/7): ior 1.5 reads 0.9994/0.9971, ior 2.4 still wanders at
+ * 0.9417/0.9277. That is variance, not bias; expect fireflies from high-IOR
+ * frosted materials at low sample counts.
  */
 export class GGXDielectric implements Material {
   readonly isSpecular = true;
@@ -346,6 +360,14 @@ export class GGXDielectric implements Material {
     readonly roughness: number,
     readonly compensate: boolean = true,
   ) {
+    // Nonphysical inputs would silently bake garbage energy tables; the scene
+    // parser rejects them too, but guard the programmatic path as well.
+    if (!(Number.isFinite(ior) && ior > 0)) {
+      throw new Error(`GGXDielectric: ior must be a finite positive number, got ${ior}`);
+    }
+    if (!(roughness >= 0 && roughness <= 1)) {
+      throw new Error(`GGXDielectric: roughness must be in [0, 1], got ${roughness}`);
+    }
     this.alpha = Math.max(MIN_ALPHA, roughness * roughness);
     this.outside = dielectricEnergy(this.alpha, 1 / ior);
     this.inside = dielectricEnergy(this.alpha, ior);

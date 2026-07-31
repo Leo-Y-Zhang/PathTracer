@@ -197,6 +197,13 @@ describe('GGXDielectric: energy-compensated rough glass', () => {
     expect(make()).toEqual(make());
   });
 
+  it('rejects nonphysical construction inputs that would bake garbage tables', () => {
+    expect(() => new GGXDielectric(0, 0.5)).toThrow(/ior/);
+    expect(() => new GGXDielectric(-1.5, 0.5)).toThrow(/ior/);
+    expect(() => new GGXDielectric(Number.NaN, 0.5)).toThrow(/ior/);
+    expect(() => new GGXDielectric(1.5, Number.NaN)).toThrow(/roughness/);
+  });
+
   it('is skipped by NEE like the other transmissive material: no finite eval/pdf', () => {
     const m = new GGXDielectric(1.5, 0.6);
     expect(m.isSpecular).toBe(true);

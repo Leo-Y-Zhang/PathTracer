@@ -121,6 +121,15 @@ describe('parseScene', () => {
     expect(() => parseScene(bad)).toThrow(/roughness/);
   });
 
+  it('rejects a nonphysical ior for both dielectric types', () => {
+    for (const ior of [0, -1.5]) {
+      const smooth = { ...minimal, materials: { g: { type: 'dielectric', ior } } };
+      expect(() => parseScene(smooth)).toThrow(/\$\.materials\.g\.ior/);
+      const rough = { ...minimal, materials: { g: { type: 'rough_dielectric', ior, roughness: 0.4 } } };
+      expect(() => parseScene(rough)).toThrow(/\$\.materials\.g\.ior/);
+    }
+  });
+
   it('rejects a scene without an objects array', () => {
     const bad = { camera: minimal.camera, materials: {} };
     expect(() => parseScene(bad)).toThrow(/\$\.objects/);
