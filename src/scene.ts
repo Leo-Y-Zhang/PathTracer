@@ -121,6 +121,13 @@ function asVec3(v: unknown, path: string): Vec3 {
   return vec3(asNumber(v[0], `${path}[0]`), asNumber(v[1], `${path}[1]`), asNumber(v[2], `${path}[2]`));
 }
 
+/** A physically meaningful index of refraction: finite and strictly positive. */
+function asIor(v: unknown, path: string): number {
+  const n = asNumber(v, path);
+  if (n <= 0) fail(path, 'a positive index of refraction', n);
+  return n;
+}
+
 function asVec2(v: unknown, path: string): [number, number] {
   if (!Array.isArray(v) || v.length !== 2) fail(path, 'an [a, b] array', v);
   return [asNumber(v[0], `${path}[0]`), asNumber(v[1], `${path}[1]`)];
@@ -167,11 +174,11 @@ function parseMaterial(
       return new Metal(asVec3(m['albedo'], `${path}.albedo`), roughness);
     }
     case 'dielectric':
-      return new Dielectric(asNumber(m['ior'], `${path}.ior`));
+      return new Dielectric(asIor(m['ior'], `${path}.ior`));
     case 'rough_dielectric': {
       const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
       if (roughness < 0 || roughness > 1) fail(`${path}.roughness`, 'a number in [0, 1]', roughness);
-      return new GGXDielectric(asNumber(m['ior'], `${path}.ior`), roughness);
+      return new GGXDielectric(asIor(m['ior'], `${path}.ior`), roughness);
     }
     case 'ggx': {
       const roughness = m['roughness'] === undefined ? 0.2 : asNumber(m['roughness'], `${path}.roughness`);
