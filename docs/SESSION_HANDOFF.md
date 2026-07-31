@@ -1,5 +1,23 @@
 # Session handoff — Helios "to the max" upgrade (repo #2)
 
+**STATUS: v1.2.0 COMPLETE on main (2026-07-31) — GGX multiple-scattering
+energy compensation + rough dielectric.** Kulla-Conty ms lobe for the GGX
+conductor (reciprocal, NEE+MIS-consistent), deterministic quadrature energy
+tables (`src/ggx-energy.ts`, no baked data), new `rough_dielectric` frosted
+glass (Walter 2007 + exact dielectric Fresnel + per-side 1/E scaling), scene
+parser + constructor validation of nonphysical ior/roughness. Albedo-1
+furnaces close at every roughness (conductor was 0.32 at roughness 1
+uncompensated). 274 tests / 32 suites, lint + strict typecheck clean;
+showcase + skylight regenerated (ggx default now compensates) so the gallery
+stays byte-reproducible. Adversarial review passed: 4 minor findings, all
+fixed at finalize (wrong test-comment figure corrected to the measured 0.34;
+high-IOR convergence caveat measured + documented in the GGXDielectric
+docblock; ior validation added; README counts refreshed). Known deliberate
+tradeoffs are documented in README Limitations. Natural next feature: a
+transmission eval/pdf pair so NEE can sample rough glass.
+
+Below is the historic v1.1.0 handoff.
+
 **STATUS: v1.1.0 COMPLETE on main (2026-07-30) — HDR image-based lighting.**
 In-tree RGBE (.hdr) codec, environment lights (constant + equirect
 luminance-CDF) inside the NEE+MIS mixture (environment furnace test proves it
