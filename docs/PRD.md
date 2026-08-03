@@ -40,14 +40,6 @@ be checked by someone who does not trust you**, and who has half an hour.
   microfacets with multiple-scattering energy compensation, and HDR
   image-based lighting importance-sampled inside the NEE mixture.
 
-**Won't, this time**
-
-- Spectral rendering, participating media, denoising, bidirectional path
-  tracing or MLT.
-- A GUI, a live preview, or an interactive viewer.
-- Publishing to npm. The package is `private: true` and the licence grants no
-  reuse right.
-
 ## The tests are the product
 
 A golden-image suite would have been easier and is the obvious thing to reach
@@ -83,7 +75,7 @@ What ships instead:
 - [x] The README gallery is reproducible from source by `npm run render:all`.
       The images are output, not artwork.
 
-## Two readers, and no third
+## Written for a reviewer, and for the author later
 
 A reviewer evaluating the author's engineering — an admissions tutor, an
 interviewer, an engineer skimming a portfolio. They want to know whether the
@@ -115,6 +107,13 @@ any machine, since the arithmetic is IEEE double and the RNG is integer. The
 *file bytes* depend on the zlib build that compresses the IDAT chunk, and the
 README says so.
 
+**Whole families of technique are out.** Spectral rendering, participating
+media, denoising, bidirectional path tracing and MLT are all absent, as is any
+GUI, live preview or interactive viewer.
+
+**Distribution is out.** The package is `private: true`, it is never published
+to npm, and the licence grants no reuse right.
+
 **Bilinear filtering of the environment map is out.** Nearest-texel sampling
 keeps the sampling pdf and the returned radiance exactly consistent per texel,
 which is what the quadrature test proves. Filtering would break that agreement
@@ -145,9 +144,9 @@ about the author's competence. That is precisely why the validation suite
 asserts analytic values instead of snapshots. A snapshot test would have
 happily frozen a wrong image.
 
-## Rejected
+## Considered and declined
 
-| Considered | Rejected because |
+| Option | Why it lost |
 |---|---|
 | A dependency for PNG, `.hdr` or OBJ parsing | The claim being made is about understanding the whole path from the rendering equation to the file bytes. Importing `pngjs` would delete the most instructive code in the repo and add supply-chain surface to a portfolio piece. The cost is ~500 lines of codec that the tests carry. |
 | SAH BVH | Median split is ~40 lines and its correctness is proven against brute force. SAH buys traversal speed for scenes an order of magnitude larger than the targets here. Listed on the roadmap, honestly, rather than half-built. |
@@ -156,7 +155,7 @@ happily frozen a wrong image.
 | A reciprocal multiple-scattering lobe for the rough dielectric | Needs separate interior/exterior lobes. The Imageworks `1/E(mu_o)` scaling closes the furnace exactly and breaks reciprocity, which costs nothing in a camera-only unidirectional tracer. Documented as a limitation rather than hidden. |
 | Making the rough dielectric non-specular so NEE can sample it | Needs a transmission eval/pdf pair with correct half-vector Jacobians. Declaring it specular costs variance under small lights, never bias. On the roadmap. |
 
-## Two live design questions
+## What is still on the table
 
 Neither blocks anything; v1.2.0 shipped. Both are on the README roadmap.
 

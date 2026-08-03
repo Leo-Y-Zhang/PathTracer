@@ -3,7 +3,7 @@
 Derived from `src/` at v1.2.0, not from the README; where the two disagreed the
 code is what is written here. Requirements: [PRD.md](PRD.md).
 
-## Two invariants everything else assumes
+## What every module is allowed to assume
 
 Every module is allowed to rely on these and obliged to preserve them. Most of
 the design decisions further down are consequences.
@@ -173,7 +173,7 @@ scene file's directory. `scenes/skylight.json` names `assets/sky.hdr`, so it
 renders from the repo root and fails from anywhere else. That is a sharp edge
 rather than a design decision, and it appears again below.
 
-## Failure modes
+## Where it goes wrong, including the two things nothing catches
 
 | What breaks | Who notices | How we detect it | How we undo it |
 |---|---|---|---|
@@ -189,7 +189,7 @@ rather than a design decision, and it appears again below.
 | Output not byte-identical across machines | A reviewer diffing PNGs | SHA-256 determinism tests pass on one machine; the *pixels* always match, the compressed IDAT depends on the zlib build | Compare decoded pixels, not file bytes. Stated in the README limitations. |
 | Out of memory on a large render | The user | Node throws on the `Float64Array` allocation | Lower `--width`/`--height`. No bound is enforced. |
 
-## Rollback
+## Undo, and the artefact that must revert with the code
 
 Nothing is deployed, nothing is stateful, nothing is published. The undo for any
 change is `git revert`, and it is complete: no database to migrate back, no
@@ -241,7 +241,7 @@ CLI command; a missing scene argument.
 A regression test in this repo means an *analytic* assertion wherever one
 exists. A stored image proves determinism, never correctness.
 
-## Build order, as it actually went
+## Version by version
 
 **v0.1.0** — vec3/ray, geometry plus AABB and BVH,
 lambertian/metal/dielectric/emissive, an iterative integrator with russian
@@ -301,7 +301,7 @@ every failure message names the JSON path that caused it, which is specified in
 If this ever grows a viewer, a progressive preview, or anything a person looks
 at while it runs, both documents get written before that code, not after.
 
-## Three open questions
+## Undecided
 
 Should `render.*` from the scene file be integer-validated like the CLI flags?
 It is a one-line strictness change with a small chance of rejecting an existing
