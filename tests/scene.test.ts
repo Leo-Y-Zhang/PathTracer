@@ -155,7 +155,7 @@ describe('parseScene', () => {
   });
 
   it('parses an image environment from a .hdr file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'helios-'));
+    const dir = mkdtempSync(join(tmpdir(), 'pathtracer-'));
     try {
       const file = join(dir, 'env.hdr');
       writeFileSync(file, encodeHdr(8, 4, new Float64Array(8 * 4 * 3).fill(0.5)));
