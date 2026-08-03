@@ -260,6 +260,47 @@ sampling inside the NEE mixture, environment furnace test.
 lobe for the conductor, and `rough_dielectric` (Walter 2007 plus exact
 dielectric Fresnel).
 
+## Why there is no App Flow and no Design Brief
+
+The estate standard asks for four documents. This project has two, and the
+absence of the other two is a decision rather than an omission, so it is
+recorded here instead of being left to look like one.
+
+**No App Flow.** An app flow enumerates screens, states, and the transitions
+between them, including empty and error states. There are none to enumerate.
+`pathtracer render scene.json` is a single non-interactive invocation: it
+validates, renders, writes one PNG, and exits. There is exactly one command,
+one success path, and one failure path (usage or a named validation error to
+stderr, exit 1), and all of it is specified above under *The user-facing
+surface* — including the two behaviours a flow document would exist to catch,
+namely that stdout is never written and that progress goes to stderr. Writing
+those transitions out a second time in a different file would create a second
+place to keep them true.
+
+**No Design Brief.** This is the more interesting absence, because the output
+of this program is a picture, and a picture normally has visual intent behind
+it. Here it does not, and that is the whole point of the project: what an image
+looks like is decided by the physics, not by taste. If a render looks wrong,
+the correct response is to find the bug in the integrator, not to adjust the
+image until it looks better. A brief specifying an intended look would be
+actively harmful — it would give a failing render somewhere to hide.
+
+Two decisions in the pipeline really are aesthetic, and both are already
+documented where they are made rather than in a brief of their own: the tone
+mapping operator (`linear` / `reinhard` / `aces`, the ACES filmic
+approximation, in `src/png.ts`), which maps an unbounded HDR radiance buffer
+into eight bits and is a display choice; and the composition of the gallery
+scenes in `scenes/`, which are chosen to exercise features and to be
+reproducible, not to be handsome. Neither reaches far enough for a document.
+
+The accessibility floor a brief would normally set does not apply either: there
+is no interface to be accessible. The nearest equivalent obligation is that
+every failure message names the JSON path that caused it, which is specified in
+*Trust boundaries* and enforced by the parser tests.
+
+If this ever grows a viewer, a progressive preview, or anything a person looks
+at while it runs, both documents get written before that code, not after.
+
 ## Three open questions
 
 Should `render.*` from the scene file be integer-validated like the CLI flags?
