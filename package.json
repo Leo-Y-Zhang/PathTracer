@@ -1,5 +1,5 @@
 {
-  "name": "helios",
+  "name": "pathtracer",
   "version": "1.2.0",
   "description": "Physically-based Monte Carlo path tracer in TypeScript with next-event estimation + MIS, HDR image-based lighting (in-tree RGBE codec), GGX materials, textures, meshes, transforms and worker-thread rendering; zero runtime dependencies, deterministic PNG output, and a physics-validated test suite",
   "type": "module",

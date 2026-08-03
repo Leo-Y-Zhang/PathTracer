@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Renamed Helios to PathTracer. The package name is now `pathtracer` and the
+  CLI usage string reads `pathtracer render <scene.json>`. Scene format, flags,
+  rendered output and the `scenes/` / `renders/` paths are unchanged.
+- Added `docs/PRD.md` and `docs/TDD.md`, written retrospectively against the
+  shipped code.
+
 ## v1.2.0 (2026-07-31)
 
 GGX multiple-scattering energy compensation (Kulla-Conty) and a rough

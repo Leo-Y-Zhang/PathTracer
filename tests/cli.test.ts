@@ -15,7 +15,7 @@ function run(args: string[]): { status: number | null; stderr: string } {
 
 describe('CLI end-to-end (requires npm run build)', () => {
   it('renders a tiny scene to a valid PNG with the requested dimensions', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'helios-'));
+    const dir = mkdtempSync(join(tmpdir(), 'pathtracer-'));
     try {
       const out = join(dir, 'tiny.png');
       const { status, stderr } = run([
@@ -36,7 +36,7 @@ describe('CLI end-to-end (requires npm run build)', () => {
   });
 
   it('two identical invocations write byte-identical files (equal SHA-256)', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'helios-'));
+    const dir = mkdtempSync(join(tmpdir(), 'pathtracer-'));
     try {
       const outA = join(dir, 'a.png');
       const outB = join(dir, 'b.png');

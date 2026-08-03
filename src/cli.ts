@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Helios CLI.
+ * PathTracer CLI.
  *
  *   node dist/cli.js render <scene.json> [--out file.png] [--spp N]
  *                    [--seed N] [--width N] [--height N] [--max-depth N]
@@ -17,7 +17,7 @@ import { renderScene } from './integrator.js';
 import { renderSceneParallel } from './parallel.js';
 import { encodePng, toneMap } from './png.js';
 
-const USAGE = `usage: helios render <scene.json> [options]
+const USAGE = `usage: pathtracer render <scene.json> [options]
 
 options:
   --out <file.png>   output path (default: renders/<scene name>.png)

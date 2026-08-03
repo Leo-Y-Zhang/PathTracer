@@ -1,9 +1,10 @@
-# Helios - a physics-validated Monte Carlo path tracer in TypeScript
+# PathTracer - a physics-validated Monte Carlo path tracer in TypeScript
 
-[![CI](https://github.com/GreenPandaTech/Helios/actions/workflows/ci.yml/badge.svg)](https://github.com/GreenPandaTech/Helios/actions/workflows/ci.yml)
+[![CI](https://github.com/GreenPandaTech/PathTracer/actions/workflows/ci.yml/badge.svg)](https://github.com/GreenPandaTech/PathTracer/actions/workflows/ci.yml)
 
-Helios - the charioteer who drives light across the sky; this one drives
-rays of it through your scenes, pixel by pixel.
+PathTracer turns a JSON scene description into a rendered image by simulating
+how light actually travels: it traces rays back from the camera, bounce by
+bounce, until they find a light.
 
 A physically-based Monte Carlo path tracer written in TypeScript for Node,
 with **zero runtime dependencies**. It renders JSON-described scenes to PNG
@@ -92,7 +93,7 @@ the analytic sky, with depth of field and ACES tone mapping.*
 
 ```bash
 git clone <this repo>
-cd Helios
+cd PathTracer
 npm ci
 npm test          # builds, then runs 274 tests (32 suites)
 npm run typecheck # strict tsc --noEmit (separate from npm test)
@@ -247,6 +248,17 @@ Documented in full in the header of `src/scene.ts`. Shape:
   ]
 }
 ```
+
+## Design documents
+
+- [docs/PRD.md](docs/PRD.md) - the problem, who it is for, what is deliberately
+  out of scope, and the alternatives that were rejected (with the reasons).
+- [docs/TDD.md](docs/TDD.md) - the architecture as built: data model, the three
+  contracts that hold the renderer together, trust boundaries, failure modes
+  (including the two that are *not* detected) and rollback.
+
+Both were written retrospectively, against the code rather than against this
+README.
 
 ## Limitations (honest)
 
