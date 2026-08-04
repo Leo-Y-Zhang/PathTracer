@@ -1,6 +1,6 @@
 # PathTracer - a physics-validated Monte Carlo path tracer in TypeScript
 
-[![CI](https://github.com/GreenPandaTech/PathTracer/actions/workflows/ci.yml/badge.svg)](https://github.com/GreenPandaTech/PathTracer/actions/workflows/ci.yml)
+[![CI](https://github.com/Leo-Y-Zhang/PathTracer/actions/workflows/ci.yml/badge.svg)](https://github.com/Leo-Y-Zhang/PathTracer/actions/workflows/ci.yml)
 
 PathTracer turns a JSON scene description into a rendered image by simulating
 how light actually travels: it traces rays back from the camera, bounce by
