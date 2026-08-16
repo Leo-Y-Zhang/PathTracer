@@ -206,7 +206,7 @@ reason.
 
 ## What each test can prove
 
-274 tests across 32 files. The gate is
+276 tests across 32 files. The gate is
 `npm run lint && npm run typecheck && npm run build && npx vitest run`; CI runs
 exactly that, then a 64×64 4-spp smoke render to prove the CLI end to end. Tests
 run against `dist/`, so `npm test` builds first.
@@ -235,8 +235,10 @@ out by hand for spheres, triangles, rects and boxes.
 out-of-range `roughness` or `ior` refused at parse time *and again* in the
 `GGXConductor` / `GGXDielectric` constructors, since a bad value would otherwise
 bake a garbage energy table; unknown material and texture names; `.hdr` headers
-in the wrong orientation; `environment` combined with `background`; an unknown
-CLI command; a missing scene argument.
+in the wrong orientation; `environment` combined with `background`; a degenerate
+camera basis (`up` parallel to the view direction, or `position` equal to
+`lookAt`), which would otherwise emit NaN rays and a silently black image; an
+unknown CLI command; a missing scene argument.
 
 A regression test in this repo means an *analytic* assertion wherever one
 exists. A stored image proves determinism, never correctness.
