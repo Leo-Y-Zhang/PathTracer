@@ -44,6 +44,45 @@ describe('Camera', () => {
     expectVecClose(a.origin, b.origin, 12);
   });
 
+  // A look-at frame is undefined when up is parallel to the view direction -
+  // the top-down camera with the default +Y up is the everyday way to hit it.
+  // Unchecked, cross(up, w) is the zero vector, every ray direction is NaN and
+  // the render comes back uniformly black with exit status 0: a wrong answer
+  // presented as a result, which is the one thing this renderer must not do.
+  it('rejects an up vector parallel to the view direction instead of emitting NaN rays', () => {
+    expect(
+      () =>
+        new Camera({ position: vec3(0, 5, 0), lookAt: vec3(0, 0, 0), vfovDegrees: 40, aspect: 1 }),
+    ).toThrow(/up/);
+    expect(
+      () =>
+        new Camera({
+          position: vec3(3, 0, 0),
+          lookAt: vec3(0, 0, 0),
+          up: vec3(1, 0, 0),
+          vfovDegrees: 40,
+          aspect: 1,
+        }),
+    ).toThrow(/up/);
+    expect(
+      () =>
+        new Camera({
+          position: vec3(0, 0, 3),
+          lookAt: vec3(0, 0, 0),
+          up: vec3(0, 0, 0),
+          vfovDegrees: 40,
+          aspect: 1,
+        }),
+    ).toThrow(/up/);
+  });
+
+  it('rejects a camera sitting on its own lookAt point (no view direction)', () => {
+    expect(
+      () =>
+        new Camera({ position: vec3(1, 2, 3), lookAt: vec3(1, 2, 3), vfovDegrees: 40, aspect: 1 }),
+    ).toThrow(/lookAt/);
+  });
+
   it('defocus blur: lens rays have jittered origins but converge on the focus plane', () => {
     const cam = new Camera({
       position: vec3(0, 0, 0),

@@ -95,7 +95,7 @@ the analytic sky, with depth of field and ACES tone mapping.*
 git clone <this repo>
 cd PathTracer
 npm ci
-npm test          # builds, then runs 274 tests (32 suites)
+npm test          # builds, then runs 276 tests (32 suites)
 npm run typecheck # strict tsc --noEmit (separate from npm test)
 ```
 
@@ -179,7 +179,7 @@ Tests validate physics against analytic ground truth, not snapshots:
 | **PNG format** (`tests/png.test.ts`) | signature, IHDR dimensions, chunk CRCs vs known answers, DEFLATE roundtrip |
 
 ```bash
-npm test          # 274 tests
+npm test          # 276 tests
 npx tsc --noEmit  # strict, noUncheckedIndexedAccess
 ```
 
@@ -221,7 +221,7 @@ src/
 scenes/               committed scenes (cornell, spheres, night, showcase, skylight)
 assets/               committed .hdr + .obj, regenerated exactly by assets:all
 renders/              committed gallery PNGs, reproducible via render:all
-tests/                32 suites / 274 tests, including the furnace + NEE + GGX + environment validations
+tests/                32 suites / 276 tests, including the furnace + NEE + GGX + environment validations
 ```
 
 ### Scene format

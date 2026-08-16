@@ -44,8 +44,20 @@ export class Camera {
     const viewportHeight = 2 * halfHeight;
     const viewportWidth = opts.aspect * viewportHeight;
 
-    const w = normalize(sub(opts.position, opts.lookAt));
-    const u = normalize(cross(up, w));
+    // The look-at frame is only defined when the view direction has length and
+    // up is not parallel to it. Both degeneracies divide by zero in normalize,
+    // and NaN ray directions render as a silently black image rather than as an
+    // error - so they are refused here, where the frame is built.
+    const view = sub(opts.position, opts.lookAt);
+    if (!(length(view) > 0)) {
+      throw new Error('camera: position and lookAt are the same point, so there is no view direction');
+    }
+    const w = normalize(view);
+    const uAxis = cross(up, w);
+    if (!(length(uAxis) > 0)) {
+      throw new Error('camera: up is parallel to the view direction, so the basis is degenerate');
+    }
+    const u = normalize(uAxis);
     const v = cross(w, u);
 
     const focusDist = opts.focusDist ?? length(sub(opts.lookAt, opts.position));
