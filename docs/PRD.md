@@ -69,8 +69,8 @@ What ships instead:
       are all in-tree. Nothing in the rendering path is code a reviewer would
       have to take on trust from npm.
 - [x] Everything a reviewer needs runs from a clone: `npm ci && npm test`,
-      Node ≥ 20, no downloads. Both committed assets — the HDR sky and the
-      torus-knot OBJ — are *generated* by in-tree scripts
+      Node 20.19+, 22.13+ or 24+, no downloads. Both committed assets — the
+      HDR sky and the torus-knot OBJ — are *generated* by in-tree scripts
       (`npm run assets:all`).
 - [x] The README gallery is reproducible from source by `npm run render:all`.
       The images are output, not artwork.
