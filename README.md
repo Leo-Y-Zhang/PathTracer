@@ -92,16 +92,18 @@ the analytic sky, with depth of field and ACES tone mapping.*
 ## Install
 
 ```bash
-git clone <this repo>
+git clone https://github.com/Leo-Y-Zhang/PathTracer.git
 cd PathTracer
 npm ci
 npm test          # builds, then runs 276 tests (32 suites)
 npm run typecheck # strict tsc --noEmit (separate from npm test)
 ```
 
-Requires Node >= 20. No runtime dependencies are installed - the only dev
-dependencies are `typescript`, `vitest`, `@types/node` and the ESLint
-toolchain.
+Requires Node 20.19+, 22.13+ or 24+ (CI runs 24). The renderer itself only
+needs `node:zlib`, `node:worker_threads` and `node:fs`, but the dev toolchain
+`npm ci` installs raises the floor above a bare Node 20. No runtime
+dependencies are installed - the only dev dependencies are `typescript`,
+`vitest`, `@types/node` and the ESLint toolchain.
 
 ## Quickstart
 
