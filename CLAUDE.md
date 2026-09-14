@@ -19,7 +19,7 @@ Fresnel), not just code paths.
   `src/io/obj.ts`.
 - `src/tools/` — deterministic asset generators (`make-sky-hdr.ts`,
   `make-knot-obj.ts`) invoked by `npm run assets:all`.
-- `tests/` — flat, one file per concern (33 files, 276 tests), including
+- `tests/` — flat, one file per concern (32 test files plus `fixtures/` and `helpers.ts`, 276 tests), including
   `skylight_scene.test.ts` (SHA-256 byte-identity across runs/threads) and
   `cli.test.ts` (spawns the built CLI as a subprocess).
 - `scenes/` — JSON scene descriptions; `renders/` — committed gallery PNGs;
