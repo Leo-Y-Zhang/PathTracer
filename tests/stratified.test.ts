@@ -38,4 +38,28 @@ describe('stratified sampling', () => {
     }
     expect(seStratified / trials).toBeLessThan(seRandom / trials);
   });
+
+  it('stays unbiased when spp is not a perfect square (the extra samples cover the whole pixel)', () => {
+    // The pixel estimate is the plain mean of all spp samples, so every sample
+    // index must be uniform over the pixel on average; E[offset] = (0.5, 0.5).
+    // Folding the samples beyond gridN^2 back onto the first grid cells would
+    // weight those cells twice and pull the mean toward the pixel's top-left
+    // (spp = 5: E[x] = E[y] = 0.45; spp = 250: E[y] = 0.456).
+    for (const [spp, trials] of [
+      [5, 4000],
+      [250, 200],
+    ] as const) {
+      let sx = 0;
+      let sy = 0;
+      for (let t = 0; t < trials; t++) {
+        for (let s = 0; s < spp; s++) {
+          const o = stratifiedOffset(s, spp, new Rng(t * 7919 + s * 31 + 3));
+          sx += o.x;
+          sy += o.y;
+        }
+      }
+      expect(Math.abs(sx / (spp * trials) - 0.5)).toBeLessThan(0.01);
+      expect(Math.abs(sy / (spp * trials) - 0.5)).toBeLessThan(0.01);
+    }
+  });
 });
