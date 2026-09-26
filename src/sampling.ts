@@ -24,13 +24,17 @@ export function randomInUnitDisk(rng: Rng): Vec3 {
  * Stratified (jittered-grid) sub-pixel offset in [0, 1)^2 for sample `index` of
  * `spp`. The pixel is split into a gridN x gridN grid (gridN = floor(sqrt spp));
  * the first gridN^2 samples land one per cell (jittered), cutting variance
- * versus purely random jitter. Two RNG draws, so the deterministic per-sample
- * seeding is preserved.
+ * versus purely random jitter. Any samples beyond gridN^2 (spp not a perfect
+ * square) are uniform over the whole pixel: folding them back onto the first
+ * cells would weight those cells twice in the pixel mean and bias it toward
+ * the pixel's top-left. Two RNG draws either way, so the deterministic
+ * per-sample seeding is preserved.
  */
 export function stratifiedOffset(index: number, spp: number, rng: Rng): { x: number; y: number } {
   const gridN = Math.max(1, Math.floor(Math.sqrt(spp)));
+  if (index >= gridN * gridN) return { x: rng.float(), y: rng.float() };
   const sx = index % gridN;
-  const sy = Math.floor(index / gridN) % gridN;
+  const sy = Math.floor(index / gridN);
   return { x: (sx + rng.float()) / gridN, y: (sy + rng.float()) / gridN };
 }
 
