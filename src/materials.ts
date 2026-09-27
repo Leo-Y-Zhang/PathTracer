@@ -296,8 +296,16 @@ export class Dielectric implements Material {
     const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
 
     const cannotRefract = ratio * sinTheta > 1; // total internal reflection
+    // Schlick is only accurate with the cosine on the optically thinner side.
+    // Leaving the medium (ratio > 1) that is the transmitted angle; using the
+    // inside cosine would keep reflectance near r0 all the way to the critical
+    // angle and break Fresnel reciprocity.
+    const cosFresnel =
+      ratio > 1 && !cannotRefract
+        ? Math.sqrt(Math.max(0, 1 - ratio * ratio * sinTheta * sinTheta))
+        : cosTheta;
     const dir =
-      cannotRefract || schlickReflectance(cosTheta, ratio) > rng.float()
+      cannotRefract || schlickReflectance(cosFresnel, ratio) > rng.float()
         ? reflect(unit, hit.normal)
         : refract(unit, hit.normal, ratio);
     return { ray: ray(hit.point, dir), attenuation: ONE };

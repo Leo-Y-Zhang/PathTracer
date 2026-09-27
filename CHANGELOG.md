@@ -7,6 +7,14 @@
   rendered output and the `scenes/` / `renders/` paths are unchanged.
 - Added `docs/PRD.md` and `docs/TDD.md`, written retrospectively against the
   shipped code.
+- Fixed: with a non-square `spp`, the samples past the stratified grid are now
+  uniform over the pixel rather than doubling up on its first cells, which had
+  biased every pixel toward its top-left sub-pixel region.
+- Fixed: smooth `dielectric` glass now evaluates Schlick Fresnel on the outside
+  angle when a ray leaves the medium, so internal reflection rises toward the
+  critical angle as it physically does (0.245 rather than 0.04 at 40 degrees
+  inside n = 1.5). Renders with glass or a non-square `spp` change slightly;
+  the committed gallery PNGs predate both fixes.
 
 ## v1.2.0 (2026-07-31)
 

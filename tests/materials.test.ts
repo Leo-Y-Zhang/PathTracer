@@ -12,6 +12,7 @@ import {
   type Material,
 } from '../src/materials.js';
 import type { HitRecord } from '../src/hittable.js';
+import { fresnelDielectric } from '../src/microfacet.js';
 import { expectVecClose } from './helpers.js';
 
 function hitAt(normal: { x: number; y: number; z: number }, frontFace: boolean, material: Material): HitRecord {
@@ -218,6 +219,33 @@ describe('Dielectric', () => {
       }
     }
     throw new Error('no transmitted sample found in 50 tries');
+  });
+
+  it('Fresnel is reciprocal: exiting glass reflects as often as entering along the refracted path', () => {
+    // Inside glass (n = 1.5) at 40 deg, just under the 41.8 deg critical angle;
+    // the refracted ray leaves at theta_t = asin(1.5 sin 40deg) ~ 74.6 deg.
+    // Fresnel reflectance is symmetric in the two sides of the interface, so a
+    // ray arriving from outside along theta_t must reflect equally often.
+    // Evaluating Schlick at the inside cosine instead reports ~4% here, where
+    // the exact dielectric Fresnel gives 0.245.
+    const m = new Dielectric(1.5);
+    const thetaI = (40 * Math.PI) / 180;
+    const thetaT = Math.asin(1.5 * Math.sin(thetaI));
+    const reflectFraction = (theta: number, frontFace: boolean, seed: number): number => {
+      const hit = hitAt(vec3(0, 1, 0), frontFace, m);
+      const dir = vec3(Math.sin(theta), -Math.cos(theta), 0);
+      const rng = new Rng(seed);
+      const n = 20_000;
+      let reflected = 0;
+      for (let i = 0; i < n; i++) {
+        if (m.scatter(ray(vec3(0, 1, 0), dir), hit, rng).ray.dir.y > 0) reflected++;
+      }
+      return reflected / n;
+    };
+    const exiting = reflectFraction(thetaI, false, 101);
+    const entering = reflectFraction(thetaT, true, 202);
+    expect(Math.abs(exiting - entering)).toBeLessThan(0.02);
+    expect(Math.abs(exiting - fresnelDielectric(Math.cos(thetaI), 1.5))).toBeLessThan(0.02);
   });
 });
 
