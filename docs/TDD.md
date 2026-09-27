@@ -206,7 +206,7 @@ reason.
 
 ## What each test can prove
 
-276 tests across 32 files. The gate is
+278 tests across 32 files. The gate is
 `npm run lint && npm run typecheck && npm run build && npx vitest run`; CI runs
 exactly that, then a 64×64 4-spp smoke render to prove the CLI end to end. Tests
 run against `dist/`, so `npm test` builds first.
